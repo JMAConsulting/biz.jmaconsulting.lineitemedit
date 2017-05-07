@@ -13,7 +13,9 @@ class CRM_Lineitemedit_Util {
    */
   public static function getLineItemTableInfo($order) {
     $lineItems = (array) $order['line_items'];
-    $lineItemTable = array();
+    $lineItemTable = array(
+      'rows' => array(),
+    );
     $links = array(
       CRM_Core_Action::UPDATE => array(
         'name' => ts('Edit'),
@@ -40,9 +42,9 @@ class CRM_Lineitemedit_Util {
 
     foreach ($lineItems as $key => $lineItem) {
       $actions = array(
-        'id' => $lineItem['id']
+        'id' => $lineItem['id'],
       );
-      $lineItemTable[$key] = array(
+      $lineItemTable['rows'][$key] = array(
         'id' => $lineItem['id'],
         'item' => $lineItem['label'],
         'financial_type' => CRM_Core_PseudoConstant::getLabel('CRM_Contribute_BAO_Contribution', 'financial_type_id', $lineItem['financial_type_id']),
@@ -53,6 +55,24 @@ class CRM_Lineitemedit_Util {
         'actions' => CRM_Core_Action::formLink($links, $mask, $actions),
       );
     }
+
+    // add 'Add Item(s)' link later appended beside total amount
+    $links = array(
+      CRM_Core_Action::ADD => array(
+        'name' => ts('Add Item(s)'),
+        'url' => 'civicrm/add/lineitem',
+        'qs' => 'reset=1&contribution_id=%%contribution_id%%',
+        'title' => ts('Add Line-item(s)'),
+      ),
+    );
+    $lineItemTable['addlineitem'] = sprintf('<b>&nbsp;&nbsp;&nbsp;%s</b>',
+      CRM_Core_Action::formLink(
+        $links, $mask,
+        array(
+          'contribution_id' => $order['contribution_id'],
+        )
+      )
+    );
 
     return $lineItemTable;
   }

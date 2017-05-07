@@ -140,6 +140,9 @@ function lineitemedit_civicrm_buildForm($formName, &$form) {
       CRM_Core_Region::instance('page-header')->add(array(
         'template' => "{$templatePath}/LineItemInfo.tpl"
       ));
+
+      CRM_Core_Resources::singleton()->addVars('lineitemedit', array('add_link' => $lineItemTable['addlineitem']));
+      CRM_Core_Resources::singleton()->addScriptFile('biz.jmaconsulting.lineitemedit', 'js/add_item_link.js');
     }
   }
 }

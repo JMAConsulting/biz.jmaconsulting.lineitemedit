@@ -8,7 +8,7 @@
     <th>{ts}Total Price{/ts}</th>
     <th></th>
   </tr>
-  {foreach from=$lineItemTable item=row}
+  {foreach from=$lineItemTable.rows item=row}
     <tr>
       <td>{$row.item}</td>
       <td>{$row.financial_type}</td>
