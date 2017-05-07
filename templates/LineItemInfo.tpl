@@ -1,4 +1,5 @@
 {* template block that contains the new field *}
+<div id="lineitem-block" class="status">
 <table id='info'>
   <tr class="columnheader">
     <th>{ts}Items{/ts}</th>
@@ -19,3 +20,7 @@
     </tr>
   {/foreach}
 </table>
+</div>
+<script type="text/javascript">
+  cj('#lineitem-block').insertAfter('#totalAmount');
+</script>
