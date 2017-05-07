@@ -124,6 +124,26 @@ function lineitemedit_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
   _lineitemedit_civix_civicrm_alterSettingsFolders($metaDataFolders);
 }
 
+function lineitemedit_civicrm_buildForm($formName, &$form) {
+  if ($formName == 'CRM_Contribute_Form_Contribution' && !empty($form->_id)) {
+    $contributionID = $form->_id;
+    // don't show line-item information if current contribution is related membership
+    $membershipID = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipPayment',$contributionID, 'membership_id', 'contribution_id');
+    if (!$membershipID) {
+      $order = civicrm_api3('Order', 'getsingle', array('id' => $contributionID));
+      $lineItemTable = CRM_Lineitemedit_Util::getLineItemTableInfo($order);
+      $form->assign('lineItemTable', $lineItemTable);
+
+      // Assumes templates are in a templates folder relative to this file
+      $templatePath = realpath(dirname(__FILE__) . "/templates");
+      // dynamically insert a template block in the page
+      CRM_Core_Region::instance('page-header')->add(array(
+        'template' => "{$templatePath}/LineItemInfo.tpl"
+      ));
+    }
+  }
+}
+
 /**
  * Functions below this ship commented out. Uncomment as required.
  *
