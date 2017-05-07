@@ -60,7 +60,7 @@ class CRM_Lineitemedit_Util {
     $links = array(
       CRM_Core_Action::ADD => array(
         'name' => ts('Add Item(s)'),
-        'url' => 'civicrm/add/lineitem',
+        'url' => 'civicrm/lineitem/add',
         'qs' => 'reset=1&contribution_id=%%contribution_id%%',
         'title' => ts('Add Line-item(s)'),
       ),

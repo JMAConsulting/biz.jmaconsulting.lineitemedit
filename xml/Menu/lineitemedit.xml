@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<menu>
+  <item>
+    <path>civicrm/lineitem/add</path>
+    <page_callback>CRM_Lineitemedit_Form_Add</page_callback>
+    <title>Add</title>
+    <access_arguments>access CiviCRM</access_arguments>
+  </item>
+  <item>
+    <path>civicrm/lineitem/edit</path>
+    <page_callback>CRM_Lineitemedit_Form_Edit</page_callback>
+    <title>Edit</title>
+    <access_arguments>access CiviCRM</access_arguments>
+  </item>
+</menu>
