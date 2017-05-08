@@ -9,7 +9,7 @@
   <item>
     <path>civicrm/lineitem/edit</path>
     <page_callback>CRM_Lineitemedit_Form_Edit</page_callback>
-    <title>Edit</title>
+    <title>Edit Lineitem</title>
     <access_arguments>access CiviCRM</access_arguments>
   </item>
 </menu>

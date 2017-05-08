@@ -77,4 +77,20 @@ class CRM_Lineitemedit_Util {
     return $lineItemTable;
   }
 
+  /**
+   * Function used to return lineItem fieldnames used for edit/add
+   *
+   * @return array
+   *   array of field names
+   */
+  public static function getLineitemFieldNames() {
+    return array(
+      'label',
+      'financial_type_id',
+      'qty',
+      'unit_price',
+      'line_total',
+    );
+  }
+
 }
