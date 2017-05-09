@@ -14,6 +14,9 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
    */
   public $_values;
 
+  public $_isQuickConfig = FALSE;
+
+  public $_priceFieldInfo = array();
 
   public function preProcess() {
     $this->_id = CRM_Utils_Request::retrieve('id', 'Positive', $this);
@@ -29,6 +32,14 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       'symbol',
       'name'
     );
+
+    $this->_isQuickConfig = (bool) CRM_Core_DAO::getFieldValue(
+      'CRM_Price_DAO_PriceSet',
+      CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceField', $lineItem['price_field_id'], 'price_set_id'),
+      'is_quick_config'
+    );
+
+    $this->_priceFieldInfo = civicrm_api3('PriceField', 'getsingle', array('id' => $lineItem['price_field_id']));
   }
 
   /**
@@ -61,7 +72,17 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
         CRM_Financial_BAO_FinancialType::getAvailableFinancialTypes($financialTypes);
         $properties['options'] = $financialTypes;
       }
-      $this->addField($fieldName, $properties, TRUE);
+      $ele = $this->addField($fieldName, $properties, TRUE);
+      // In case of quickconfig price field we cannot change quantity
+      if ($this->_isQuickConfig) {
+        if ($fieldName == 'qty') {
+          $ele->freeze();
+        }
+      }
+      // In case of text non-quickconfig price field we cannot change the unit price
+      elseif ($this->_priceFieldInfo['is_enter_qty'] == 1 && $fieldName == 'unit_price') {
+        $ele->freeze();
+      }
     }
     $this->assign('fieldNames', $fieldNames);
 

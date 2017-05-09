@@ -70,6 +70,16 @@ class CRM_Lineitemedit_Util {
    *   HTML anchor tag of 'Add Item(s)' action
    */
   public static function getAddLineItemLink($contributionID) {
+    // don't show Add Item(s) if the contribution is related to membership payment
+    if (CRM_Core_DAO::getFieldValue(
+      'CRM_Member_DAO_MembershipPayment',
+      $contributionID,
+      'membership_id',
+      'contribution_id'
+    )) {
+      return '';
+    }
+
     $permissions = array(CRM_Core_Permission::VIEW);
     if (CRM_Core_Permission::check('edit contributions')) {
       $permissions[] = CRM_Core_Permission::EDIT;
