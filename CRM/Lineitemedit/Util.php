@@ -13,6 +13,8 @@ class CRM_Lineitemedit_Util {
    */
   public static function getLineItemTableInfo($order) {
     $lineItems = (array) $order['line_items'];
+    $membershipID = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipPayment', $order['contribution_id'], 'membership_id', 'contribution_id');
+
     $lineItemTable = array(
       'rows' => array(),
     );
@@ -52,11 +54,31 @@ class CRM_Lineitemedit_Util {
         'unit_price' => $lineItem['unit_price'],
         'total_price' => $lineItem['line_total'],
         'currency' => $order['currency'],
-        'actions' => CRM_Core_Action::formLink($links, $mask, $actions),
+        'actions' => empty($membershipID) ? CRM_Core_Action::formLink($links, $mask, $actions) : '',
       );
     }
 
-    // add 'Add Item(s)' link later appended beside total amount
+    return $lineItemTable;
+  }
+
+  /**
+   * Function used to return 'Add Item(s)' link, later added above total amount by jquery
+   *
+   * @param int $contributionID
+   *
+   * @return string
+   *   HTML anchor tag of 'Add Item(s)' action
+   */
+  public static function getAddLineItemLink($contributionID) {
+    $permissions = array(CRM_Core_Permission::VIEW);
+    if (CRM_Core_Permission::check('edit contributions')) {
+      $permissions[] = CRM_Core_Permission::EDIT;
+    }
+    if (CRM_Core_Permission::check('delete in CiviContribute')) {
+      $permissions[] = CRM_Core_Permission::DELETE;
+    }
+    $mask = CRM_Core_Action::mask($permissions);
+
     $links = array(
       CRM_Core_Action::ADD => array(
         'name' => ts('Add Item(s)'),
@@ -65,16 +87,47 @@ class CRM_Lineitemedit_Util {
         'title' => ts('Add Line-item(s)'),
       ),
     );
-    $lineItemTable['addlineitem'] = sprintf('<b>&nbsp;&nbsp;&nbsp;%s</b>',
+
+    return sprintf('<b>%s</b>',
       CRM_Core_Action::formLink(
         $links, $mask,
         array(
-          'contribution_id' => $order['contribution_id'],
+          'contribution_id' => $contributionID,
         )
       )
     );
+  }
 
-    return $lineItemTable;
+  /**
+   * Function used to format lineItem lists by appending edit and cancel item action links with label
+   *
+   * @param array $lineitems
+   *   list of lineitems
+   *
+   */
+  public static function formatLineItemList(&$lineItems) {
+    foreach ($lineItems as $priceSetID => $records) {
+      if ($records != 'skip') {
+        foreach ($records as $lineItemID => $lineItem) {
+          // do not show cancel and edit actions on membership
+          if ($lineItem['entity_table'] == 'civicrm_membership') {
+            continue;
+          }
+          $actionlinks = sprintf("
+            <a href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>&nbsp;
+            <a href=%s title='Cancel Item'><i class='crm-i fa-times'></i></a>&nbsp;",
+            CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID),
+            CRM_Utils_System::url('civicrm/lineitem/cancel', 'reset=1&id=' . $lineItemID)
+          );
+          if ($lineItem['field_title'] && $lineItem['html_type'] != 'Text') {
+            $lineItems[$priceSetID][$lineItemID]['field_title'] = $actionlinks . $lineItems[$priceSetID][$lineItemID]['field_title'];
+          }
+          else {
+            $lineItems[$priceSetID][$lineItemID]['label'] = $actionlinks . $lineItems[$priceSetID][$lineItemID]['label'];
+          }
+        }
+      }
+    }
   }
 
   /**

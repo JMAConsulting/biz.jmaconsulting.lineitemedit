@@ -127,9 +127,10 @@ function lineitemedit_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
 function lineitemedit_civicrm_buildForm($formName, &$form) {
   if ($formName == 'CRM_Contribute_Form_Contribution' && !empty($form->_id)) {
     $contributionID = $form->_id;
-    // don't show line-item information if current contribution is related membership
-    $membershipID = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipPayment',$contributionID, 'membership_id', 'contribution_id');
-    if (!$membershipID) {
+
+    $isQuickConfig = empty($form->_lineItems) ? TRUE : FALSE;
+    // Append line-item table only if current contribution has quick config lineitem
+    if ($isQuickConfig) {
       $order = civicrm_api3('Order', 'getsingle', array('id' => $contributionID));
       $lineItemTable = CRM_Lineitemedit_Util::getLineItemTableInfo($order);
       $form->assign('lineItemTable', $lineItemTable);
@@ -140,10 +141,17 @@ function lineitemedit_civicrm_buildForm($formName, &$form) {
       CRM_Core_Region::instance('page-header')->add(array(
         'template' => "{$templatePath}/LineItemInfo.tpl"
       ));
-
-      CRM_Core_Resources::singleton()->addVars('lineitemedit', array('add_link' => $lineItemTable['addlineitem']));
-      CRM_Core_Resources::singleton()->addScriptFile('biz.jmaconsulting.lineitemedit', 'js/add_item_link.js');
     }
+    else {
+      CRM_Lineitemedit_Util::formatLineItemList($form->_lineItems);
+      $form->assign('lineItem', $form->_lineItems);
+    }
+
+    CRM_Core_Resources::singleton()->addVars('lineitemedit', array(
+      'add_link' => CRM_Lineitemedit_Util::getAddLineItemLink($contributionID),
+      'isQuickConfig' => $isQuickConfig,
+    ));
+    CRM_Core_Resources::singleton()->addScriptFile('biz.jmaconsulting.lineitemedit', 'js/add_item_link.js');
   }
 }
 

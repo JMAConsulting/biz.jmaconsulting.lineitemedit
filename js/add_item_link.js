@@ -1,6 +1,9 @@
 CRM.$(function($) {
-  if ($('#totalAmount').length == 1) {
+  if (CRM.vars.lineitemedit.isQuickConfig && $('#totalAmount').length) {
+    $('#lineitem-block').insertAfter('#totalAmount');
     $('#totalAmount').append(CRM.vars.lineitemedit.add_link);
   }
-  $('#lineitem-block').insertAfter('#totalAmount');
+  else {
+    $('div.total_amount-section').prepend(CRM.vars.lineitemedit.add_link);
+  }
 });
