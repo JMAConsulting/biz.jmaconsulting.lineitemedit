@@ -155,7 +155,7 @@ class CRM_Lineitemedit_Util {
    * @return money
    *       total tax amount in money format
    */
-  public static function getTaxamountTotalFromContributionID($contributionID) {
+  public static function getTaxAmountTotalFromContributionID($contributionID) {
     $taxAmount = CRM_Core_DAO::singleValueQuery("SELECT SUM(COALESCE(tax_amount,0)) FROM civicrm_line_item WHERE contribution_id = $contributionID AND qty > 0 ");
     return CRM_Utils_Money::format($taxAmount, NULL, NULL, TRUE);
   }
@@ -174,8 +174,7 @@ class CRM_Lineitemedit_Util {
 SELECT fi.*
   FROM civicrm_financial_item fi
     LEFT JOIN civicrm_line_item li ON (li.id = fi.entity_id AND fi.entity_table = 'civicrm_line_item')
-WHERE (li.entity_table = 'civicrm_line_item' AND li.entity_id = {$lineItemID})
-GROUP BY li.entity_table, li.entity_id, price_field_value_id, fi.id
+WHERE fi.entity_id = {$lineItemID}
     ";
 
     $previousFinancialItemDAO = CRM_Core_DAO::executeQuery($getPreviousFinancialItemSQL);

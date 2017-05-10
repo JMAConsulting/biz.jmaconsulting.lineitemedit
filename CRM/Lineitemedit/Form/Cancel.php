@@ -66,7 +66,7 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
 
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = $this->_multipleLineItem ? CRM_Price_BAO_LineItem::getLineTotal($this->_prevContributionID) : 0;
-    $taxAmount = $this->_multipleLineItem ? CRM_Lineitemedit_Util::getTaxamountTotalFromContributionID($this->_prevContributionID) : "NULL";
+    $taxAmount = $this->_multipleLineItem ? CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($this->_prevContributionID) : "NULL";
     $paidAmount = CRM_Utils_Array::value(
       'paid',
       CRM_Contribute_BAO_Contribution::getPaymentInfo(
