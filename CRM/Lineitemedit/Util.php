@@ -13,6 +13,13 @@ class CRM_Lineitemedit_Util {
    */
   public static function getLineItemTableInfo($order) {
     $lineItems = (array) $order['line_items'];
+
+    // TODO: order.get API doesn't fetch cancelled line_items
+    if (empty($lineItems)) {
+      $lineItems = civicrm_api3('LineItem', 'Get', array('contribution_id' => $order['contribution_id']));
+      $lineItems = $lineItems['values'];
+    }
+
     $membershipID = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipPayment', $order['contribution_id'], 'membership_id', 'contribution_id');
 
     $lineItemTable = array(
@@ -54,7 +61,7 @@ class CRM_Lineitemedit_Util {
         'unit_price' => $lineItem['unit_price'],
         'total_price' => $lineItem['line_total'],
         'currency' => $order['currency'],
-        'actions' => empty($membershipID) ? CRM_Core_Action::formLink($links, $mask, $actions) : '',
+        'actions' => empty($membershipID || $lineItem['qty'] == 0) ? CRM_Core_Action::formLink($links, $mask, $actions) : '',
       );
     }
 
@@ -119,13 +126,13 @@ class CRM_Lineitemedit_Util {
     foreach ($lineItems as $priceSetID => $records) {
       if ($records != 'skip') {
         foreach ($records as $lineItemID => $lineItem) {
-          // do not show cancel and edit actions on membership
-          if ($lineItem['entity_table'] == 'civicrm_membership') {
+          // do not show cancel and edit actions on membership OR if the item is already cancelled
+          if ($lineItem['entity_table'] == 'civicrm_membership' || $lineItem['qty'] == 0) {
             continue;
           }
           $actionlinks = sprintf("
-            <a href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>&nbsp;
-            <a href=%s title='Cancel Item'><i class='crm-i fa-times'></i></a>&nbsp;",
+            <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>
+            <a class='action-item crm-hover-button' href=%s title='Cancel Item'><i class='crm-i fa-times'></i></a>",
             CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID),
             CRM_Utils_System::url('civicrm/lineitem/cancel', 'reset=1&id=' . $lineItemID)
           );
@@ -136,6 +143,65 @@ class CRM_Lineitemedit_Util {
             $lineItems[$priceSetID][$lineItemID]['label'] = $actionlinks . $lineItems[$priceSetID][$lineItemID]['label'];
           }
         }
+      }
+    }
+  }
+
+  /**
+   * Function used to return total tax amount of a contribution, calculated from associated line item records
+   *
+   * @param int $contributionID
+   *
+   * @return money
+   *       total tax amount in money format
+   */
+  public static function getTaxamountTotalFromContributionID($contributionID) {
+    $taxAmount = CRM_Core_DAO::singleValueQuery("SELECT SUM(COALESCE(tax_amount,0)) FROM civicrm_line_item WHERE contribution_id = $contributionID AND qty > 0 ");
+    return CRM_Utils_Money::format($taxAmount, NULL, NULL, TRUE);
+  }
+
+  /**
+   * Function used to enter financial records upon cancellation of lineItem
+   *
+   * @param int $lineItemID
+   * @param money $previousLineItemTaxAmount
+   * @param obj $trxn
+   *
+   */
+  public static function insertFinancialItemOnCancel($lineItemID, $previousLineItemTaxAmount, $trxn) {
+    // gathering necessary info to record negative (deselected) financial_item
+    $getPreviousFinancialItemSQL = "
+SELECT fi.*
+  FROM civicrm_financial_item fi
+    LEFT JOIN civicrm_line_item li ON (li.id = fi.entity_id AND fi.entity_table = 'civicrm_line_item')
+WHERE (li.entity_table = 'civicrm_line_item' AND li.entity_id = {$lineItemID})
+GROUP BY li.entity_table, li.entity_id, price_field_value_id, fi.id
+    ";
+
+    $previousFinancialItemDAO = CRM_Core_DAO::executeQuery($getPreviousFinancialItemSQL);
+    $trxnId = array('id' => $trxn->id);
+    while ($previousFinancialItemDAO->fetch()) {
+      $previousFinancialItemInfoValues = (array) $previousFinancialItemDAO;
+
+      $previousFinancialItemInfoValues['transaction_date'] = date('YmdHis');
+      $previousFinancialItemInfoValues['amount'] = -$previousFinancialItemInfoValues['amount'];
+
+      // the below params are not needed
+      unset($previousFinancialItemInfoValues['id']);
+      unset($previousFinancialItemInfoValues['created_date']);
+
+      // create financial item for deselected or cancelled line item
+      CRM_Financial_BAO_FinancialItem::create($previousFinancialItemInfoValues, NULL, $trxnId);
+
+      // insert financial item related to tax
+      if (!empty($previousLineItemTaxAmount)) {
+        $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
+        $taxFinancialItemInfo = array_merge($previousFinancialItemInfoValues, array(
+          'amount' => -$previousLineItemTaxAmount,
+          'description' => $taxTerm,
+        ));
+        // create financial item for tax amount related to deselected or cancelled line item
+        CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
       }
     }
   }
@@ -155,5 +221,6 @@ class CRM_Lineitemedit_Util {
       'line_total',
     );
   }
+
 
 }

@@ -125,7 +125,10 @@ function lineitemedit_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
 }
 
 function lineitemedit_civicrm_buildForm($formName, &$form) {
-  if ($formName == 'CRM_Contribute_Form_Contribution' && !empty($form->_id)) {
+  if ($formName == 'CRM_Contribute_Form_Contribution' &&
+    !empty($form->_id) &&
+    ($form->_action & CRM_Core_Action::UPDATE)
+  ) {
     $contributionID = $form->_id;
 
     $isQuickConfig = empty($form->_lineItems) ? TRUE : FALSE;

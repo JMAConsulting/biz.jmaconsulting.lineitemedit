@@ -12,4 +12,10 @@
     <title>Edit Lineitem</title>
     <access_arguments>access CiviCRM</access_arguments>
   </item>
+  <item>
+    <path>civicrm/lineitem/cancel</path>
+    <page_callback>CRM_Lineitemedit_Form_Cancel</page_callback>
+    <title>Cancel</title>
+    <access_arguments>access CiviCRM</access_arguments>
+  </item>
 </menu>
