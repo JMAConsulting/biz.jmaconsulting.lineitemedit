@@ -61,7 +61,7 @@ class CRM_Lineitemedit_Util {
         'unit_price' => $lineItem['unit_price'],
         'total_price' => $lineItem['line_total'],
         'currency' => $order['currency'],
-        'actions' => empty($membershipID || $lineItem['qty'] == 0) ? CRM_Core_Action::formLink($links, $mask, $actions) : '',
+        'actions' => (empty($membershipID) || $lineItem['qty'] == 0) ? CRM_Core_Action::formLink($links, $mask, $actions) : '',
       );
     }
 
