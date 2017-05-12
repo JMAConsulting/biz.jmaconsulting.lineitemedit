@@ -206,19 +206,94 @@ WHERE fi.entity_id = {$lineItemID}
   }
 
   /**
+   * Function used to return list of price fields,
+   *   later used in 'Add item' form
+   *
+   * @return array $priceFields
+   *      list of price fields
+   */
+  public static function getPriceFieldLists() {
+    $sql = "
+SELECT    pfv.id as pfv_id,
+          pfv.label as pfv_label,
+          ps.title as ps_label,
+          ps.is_quick_config as is_quick,
+          ps.id
+FROM      civicrm_price_field_value as pfv
+LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
+LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
+WHERE  ps.extends = 2 AND ps.financial_type_id IS NOT NULL
+ORDER BY  ps.id, pf.weight ;
+";
+
+    $dao = CRM_Core_DAO::executeQuery($sql);
+    $priceFields = array();
+    while ($dao->fetch()) {
+      $isQuickConfigSpecialChar = ($dao->is_quick == 1) ? '<b>*</b>' : '';
+      $priceFields[$dao->pfv_id] = sprintf("%s%s :: %s", $isQuickConfigSpecialChar, $dao->ps_label, $dao->pfv_label);
+    }
+
+    return $priceFields;
+  }
+
+  /**
+   * AJAX function used to return list of price field information
+   *   on given price field value id as 'pfv_id'
+   *
+   * @return json
+   *      list of price field information
+   */
+  public static function getPriceFieldInfo() {
+    if (!empty($_GET['pfv_id'])) {
+      $priceFieldValueID = $_GET['pfv_id'];
+      $priceFieldValueInfo = civicrm_api3('PriceFieldValue', 'getsingle', array('id' => $priceFieldValueID));
+
+      // calculate tax amount
+      $contributeSettings = Civi::settings()->get('contribution_invoice_settings');
+      $taxRates = CRM_Core_PseudoConstant::getTaxRates();
+      if (!empty($contributeSettings['invoicing']) &&
+        array_key_exists($priceFieldValueInfo['financial_type_id'], $taxRates)
+      ) {
+        $taxRate = $taxRates[$priceFieldValueInfo['financial_type_id']];
+        $priceFieldValueInfo['tax_amount'] = CRM_Contribute_BAO_Contribution_Utils::calculateTaxAmount(
+          $priceFieldValueInfo['amount'],
+          $taxRate
+        );
+      }
+
+      return CRM_Utils_JSON::output(array(
+        'qty' => 1,
+        'label' => $priceFieldValueInfo['label'],
+        'financial_type_id' => $priceFieldValueInfo['financial_type_id'],
+        'unit_price' => $priceFieldValueInfo['amount'],
+        'line_total' => $priceFieldValueInfo['amount'],
+        'tax_amount' => CRM_Utils_Array::value('tax_amount', $priceFieldValueInfo, 0),
+      ));
+    }
+  }
+
+  /**
    * Function used to return lineItem fieldnames used for edit/add
    *
    * @return array
    *   array of field names
    */
   public static function getLineitemFieldNames() {
-    return array(
+    $fieldNames =  array(
       'label',
       'financial_type_id',
       'qty',
       'unit_price',
       'line_total',
     );
+
+    // if tax is enabled append tax_amount field name
+    $contributeSettings = Civi::settings()->get('contribution_invoice_settings');
+    if (!empty($contributeSettings['invoicing'])) {
+      $fieldNames = array_merge($fieldNames, array('tax_amount'));
+    }
+
+    return $fieldNames;
   }
 
 

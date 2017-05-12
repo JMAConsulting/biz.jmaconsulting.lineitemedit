@@ -3,19 +3,24 @@
   <item>
     <path>civicrm/lineitem/add</path>
     <page_callback>CRM_Lineitemedit_Form_Add</page_callback>
-    <title>Add</title>
+    <title>Add Item</title>
     <access_arguments>access CiviCRM</access_arguments>
   </item>
   <item>
     <path>civicrm/lineitem/edit</path>
     <page_callback>CRM_Lineitemedit_Form_Edit</page_callback>
-    <title>Edit Lineitem</title>
+    <title>Edit Item</title>
     <access_arguments>access CiviCRM</access_arguments>
   </item>
   <item>
     <path>civicrm/lineitem/cancel</path>
     <page_callback>CRM_Lineitemedit_Form_Cancel</page_callback>
-    <title>Cancel</title>
+    <title>Cancel Item</title>
+    <access_arguments>access CiviCRM</access_arguments>
+  </item>
+  <item>
+    <path>civicrm/ajax/get-pricefield-info</path>
+    <page_callback>CRM_Lineitemedit_Util::getPriceFieldInfo</page_callback>
     <access_arguments>access CiviCRM</access_arguments>
   </item>
 </menu>

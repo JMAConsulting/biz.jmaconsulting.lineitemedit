@@ -72,19 +72,24 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
         CRM_Financial_BAO_FinancialType::getAvailableFinancialTypes($financialTypes);
         $properties['options'] = $financialTypes;
       }
-      $ele = $this->addField($fieldName, $properties, TRUE);
       // In case of quickconfig price field we cannot change quantity
       if ($this->_isQuickConfig) {
         if ($fieldName == 'qty') {
-          $ele->freeze();
+          $properties['readonly'] = TRUE;
         }
       }
       // In case of text non-quickconfig price field we cannot change the unit price
       elseif ($this->_priceFieldInfo['is_enter_qty'] == 1 && $fieldName == 'unit_price') {
-        $ele->freeze();
+        $properties['readonly'] = TRUE;
       }
+
+      $this->addField($fieldName, $properties, TRUE);
     }
     $this->assign('fieldNames', $fieldNames);
+
+    if (in_array('tax_amount', $this->_fieldNames)) {
+      $this->assign('taxRates', json_encode(CRM_Core_PseudoConstant::getTaxRates()));
+    }
 
     $this->addButtons(array(
       array(
