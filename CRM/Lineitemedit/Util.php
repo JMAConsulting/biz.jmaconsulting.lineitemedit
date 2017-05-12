@@ -206,6 +206,62 @@ WHERE fi.entity_id = {$lineItemID}
   }
 
   /**
+   * Function used to enter financial records upon addition of lineItem
+   *
+   * @param int $lineItemID
+   * @param money $taxAmount
+   * @param CRM_Financial_DAO_FinancialTrxn $trxn
+   *
+   */
+  public static function insertFinancialItemOnAdd($lineItemID, $taxAmount, $trxn) {
+    $lineItem = civicrm_api3('LineItem', 'getsingle', array('id' => $lineItemID));
+
+    $contribution = civicrm_api3('Contribution', 'getsingle', array('id' => $lineItem['contribution_id']));
+
+    $ARFinancialAcoountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
+      $lineitem['financial_type_id'],
+      'Accounts Receivable Account is'
+    );
+
+    // check if the financial type of related contribution and new line item is different,
+    //  if yes then update the financial_trxn.to_financial_account_id, identified by $trxn->id
+    if ($contribution['financial_type_id'] != $lineitem['financial_type_id']) {
+      CRM_Core_DAO::setFieldValue('CRM_Financial_DAO_FinancialTrxn',
+        $trxn->id,
+        'to_financial_account_id',
+        $ARFinancialAcoountID
+      );
+    }
+
+    $newFinancialItem = array(
+      'transaction_date' => date('YmdHis'),
+      'contact_id' => $contribution['contact_id'],
+      'description' => $lineItem['label'],
+      'amount' => $lineItem['line_total'],
+      'currency' => $contribution['currency'],
+      'financial_account_id' => $ARFinancialAcoountID,
+      'status_id' => array_search('Unpaid', CRM_Core_PseudoConstant::get('CRM_Financial_DAO_FinancialItem', 'status_id')),
+      'entity_table' => 'civicrm_line_item',
+      'entity_id' => $lineItem['id'],
+    );
+    $trxnId = array('id' => $trxn->id);
+
+    // create financial item for added line item
+    CRM_Financial_BAO_FinancialItem::create($newFinancialItem, NULL, $trxnId);
+    if (!empty($taxAmount) && is_numeric($taxAmount) && $taxAmount != 0) {
+      $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
+      $taxFinancialItemInfo = array_merge($newFinancialItem, array(
+        'amount' => $taxAmount,
+        'description' => $taxTerm,
+        'financial_account_id' => CRM_Contribute_BAO_Contribution::getFinancialAccountId($lineItem['financial_type_id']),
+      ));
+      // create financial item for tax amount related to added line item
+      CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
+    }
+
+  }
+
+  /**
    * Function used to return list of price fields,
    *   later used in 'Add item' form
    *
@@ -275,10 +331,12 @@ ORDER BY  ps.id, pf.weight ;
   /**
    * Function used to return lineItem fieldnames used for edit/add
    *
+   * @param bool $isAddItem
+   *
    * @return array
    *   array of field names
    */
-  public static function getLineitemFieldNames() {
+  public static function getLineitemFieldNames($isAddItem = FALSE) {
     $fieldNames =  array(
       'label',
       'financial_type_id',
@@ -286,6 +344,10 @@ ORDER BY  ps.id, pf.weight ;
       'unit_price',
       'line_total',
     );
+
+    if ($isAddItem) {
+      array_unshift($fieldNames, "price_field_value_id");
+    }
 
     // if tax is enabled append tax_amount field name
     $contributeSettings = Civi::settings()->get('contribution_invoice_settings');
@@ -296,5 +358,83 @@ ORDER BY  ps.id, pf.weight ;
     return $fieldNames;
   }
 
+  /**
+   * Record adjusted amount, copied from CRM_Event_BAO_Participant::recordAdjustedAmt(..) to tackle a core bug
+   *
+   * @param int $updatedAmount
+   * @param int $paidAmount
+   * @param int $contributionId
+   *
+   * @param int $taxAmount
+   * @param money $previousTaxAmount
+   *
+   * @return bool|\CRM_Core_BAO_FinancialTrxn
+   */
+  public static function recordAdjustedAmt($updatedAmount, $paidAmount, $contributionId, $taxAmount = NULL, $previousTaxAmount = NULL) {
+    $pendingAmount = CRM_Core_BAO_FinancialTrxn::getBalanceTrxnAmt($contributionId);
+    $pendingAmount = CRM_Utils_Array::value('total_amount', $pendingAmount, 0);
+
+    // deduct the taxamount from contribution total on cancelling a taxable line item
+    if ($previousTaxAmount) {
+      $updatedAmount -= $previousTaxAmount;
+    }
+    $balanceAmt = $updatedAmount - $paidAmount;
+    if ($paidAmount != $pendingAmount) {
+      if ($updatedAmount < $paidAmount) {
+        $balanceAmt -= $pendingAmount;
+      }
+    }
+
+    $contributionStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
+    $partiallyPaidStatusId = array_search('Partially paid', $contributionStatuses);
+    $pendingRefundStatusId = array_search('Pending refund', $contributionStatuses);
+    $completedStatusId = array_search('Completed', $contributionStatuses);
+
+    $updatedContributionDAO = new CRM_Contribute_BAO_Contribution();
+    $adjustedTrxn = $skip = FALSE;
+    if ($balanceAmt) {
+      if ($balanceAmt > 0 && $paidAmount != 0) {
+        $contributionStatusVal = $partiallyPaidStatusId;
+      }
+      elseif ($balanceAmt < 0 && $paidAmount != 0) {
+        $contributionStatusVal = $pendingRefundStatusId;
+      }
+      elseif ($paidAmount == 0) {
+        //skip updating the contribution status if no payment is made
+        $skip = TRUE;
+        $updatedContributionDAO->cancel_date = 'null';
+        $updatedContributionDAO->cancel_reason = NULL;
+      }
+      // update contribution status and total amount without trigger financial code
+      // as this is handled in current BAO function used for change selection
+      $updatedContributionDAO->id = $contributionId;
+      if (!$skip) {
+        $updatedContributionDAO->contribution_status_id = $contributionStatusVal;
+      }
+      $updatedContributionDAO->total_amount = $updatedContributionDAO->net_amount = $updatedAmount;
+      $updatedContributionDAO->fee_amount = 0;
+      $updatedContributionDAO->tax_amount = $taxAmount;
+      $updatedContributionDAO->save();
+      // adjusted amount financial_trxn creation
+      $updatedContribution = CRM_Contribute_BAO_Contribution::getValues(
+        array('id' => $contributionId),
+        CRM_Core_DAO::$_nullArray,
+        CRM_Core_DAO::$_nullArray
+      );
+      $toFinancialAccount = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($updatedContribution->financial_type_id, 'Accounts Receivable Account is');
+      $adjustedTrxnValues = array(
+        'from_financial_account_id' => NULL,
+        'to_financial_account_id' => $toFinancialAccount,
+        'total_amount' => $balanceAmt,
+        'status_id' => $completedStatusId,
+        'payment_instrument_id' => $updatedContribution->payment_instrument_id,
+        'contribution_id' => $updatedContribution->id,
+        'trxn_date' => date('YmdHis'),
+        'currency' => $updatedContribution->currency,
+      );
+      $adjustedTrxn = CRM_Core_BAO_FinancialTrxn::create($adjustedTrxnValues);
+    }
+    return $adjustedTrxn;
+  }
 
 }

@@ -31,7 +31,6 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
     ));
 
     $this->_multipleLineItem = ($count > 1) ? TRUE : FALSE;
-    CRM_Core_Error::debug_var('count' ,$this->_multipleLineItem);
   }
 
   public function buildQuickForm() {
@@ -78,12 +77,12 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
     );
 
     // Record adjusted amount by updating contribution info and create necessary financial trxns
-    $trxn = CRM_Event_BAO_Participant::recordAdjustedAmt(
+    $trxn = CRM_Lineitemedit_Util::recordAdjustedAmt(
       $updatedAmount,
       $paidAmount,
       $this->_prevContributionID,
       $taxAmount,
-      NULL
+      $previousTaxAmount
     );
 
     // record financial item on cancellation of lineitem
