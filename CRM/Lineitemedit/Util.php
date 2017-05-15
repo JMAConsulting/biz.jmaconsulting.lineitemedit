@@ -213,13 +213,11 @@ WHERE fi.entity_id = {$lineItemID}
    * @param CRM_Financial_DAO_FinancialTrxn $trxn
    *
    */
-  public static function insertFinancialItemOnAdd($lineItemID, $taxAmount, $trxn) {
-    $lineItem = civicrm_api3('LineItem', 'getsingle', array('id' => $lineItemID));
-
+  public static function insertFinancialItemOnAdd($lineItem, $taxAmount, $trxn) {
     $contribution = civicrm_api3('Contribution', 'getsingle', array('id' => $lineItem['contribution_id']));
 
-    $ARFinancialAcoountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
-      $lineitem['financial_type_id'],
+    $ARFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
+      $lineItem['financial_type_id'],
       'Accounts Receivable Account is'
     );
 
@@ -229,7 +227,7 @@ WHERE fi.entity_id = {$lineItemID}
       CRM_Core_DAO::setFieldValue('CRM_Financial_DAO_FinancialTrxn',
         $trxn->id,
         'to_financial_account_id',
-        $ARFinancialAcoountID
+        $ARFinancialAccountID
       );
     }
 
@@ -239,7 +237,7 @@ WHERE fi.entity_id = {$lineItemID}
       'description' => $lineItem['label'],
       'amount' => $lineItem['line_total'],
       'currency' => $contribution['currency'],
-      'financial_account_id' => $ARFinancialAcoountID,
+      'financial_account_id' => $ARFinancialAccountID,
       'status_id' => array_search('Unpaid', CRM_Core_PseudoConstant::get('CRM_Financial_DAO_FinancialItem', 'status_id')),
       'entity_table' => 'civicrm_line_item',
       'entity_id' => $lineItem['id'],
@@ -258,7 +256,88 @@ WHERE fi.entity_id = {$lineItemID}
       // create financial item for tax amount related to added line item
       CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
     }
+  }
 
+  /**
+   * Function used to enter/update financial records upon edit of lineItem
+   *
+   * @param int $lineItemID
+   * @param money $taxAmount
+   * @param CRM_Financial_DAO_FinancialTrxn $trxn
+   * @param int $recordChangedAttributes
+   * @param money $balanceAmount
+   * @param money $balanceTaxAmount
+   *
+   */
+  public static function insertFinancialItemOnEdit($lineItemID,
+    $taxAmount,
+    $trxn,
+    $recordChangedAttributes,
+    $balanceAmount,
+    $balanceTaxAmount
+  ) {
+
+    $lineItem = civicrm_api3('LineItem', 'Getsingle', array(
+      'id' => $lineItemID,
+    ));
+
+    $previousFinancialItem = CRM_Financial_BAO_FinancialItem::getPreviousFinancialItem($lineItemID);
+    $trxnId = array('id' => $trxn->id);
+    if ($recordChangedAttributes['amountChanged']) {
+      if ($balanceAmount > 0) {
+        unset($previousFinancialItem['created_date']);
+        $previousFinancialItem['transaction_date'] = date('YmdHis');
+        $previousFinancialItem['description'] = $lineItem['label'];
+        $previousFinancialItem['amount'] = $lineItem['line_total'];
+        $previousFinancialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Partially paid');
+        if ($recordChangedAttributes['financialTypeChanged']) {
+          $previousFinancialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
+            $lineItem['financial_type_id'],
+            'Accounts Receivable Account is'
+          );
+        }
+        CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
+      }
+      // create a new financial item recording the pending refund amount
+      elseif ($balanceAmount < 0) {
+        unset($previousFinancialItem['id']);
+        unset($previousFinancialItem['created_date']);
+        $previousFinancialItem['transaction_date'] = date('YmdHis');
+        $previousFinancialItem['description'] = $lineItem['label'];
+        $previousFinancialItem['amount'] = $balanceAmount;
+        $previousFinancialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid');
+        if ($recordChangedAttributes['financialTypeChanged']) {
+          $previousFinancialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
+            $lineItem['financial_type_id'],
+            'Accounts Receivable Account is'
+          );
+        }
+        CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
+      }
+      elseif ($balanceAmount < 0) {
+        unset($previousFinancialItem['created_date']);
+        unset($previousFinancialItem['transaction_date']);
+        $previousFinancialItem['description'] = $lineItem['label'];
+        if ($recordChangedAttributes['financialTypeChanged']) {
+          $previousFinancialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
+            $lineItem['financial_type_id'],
+            'Accounts Receivable Account is'
+          );
+        }
+        CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
+      }
+    }
+
+
+    if (!empty($recordChangedAttributes['taxAmountChanged'])) {
+      $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
+      $taxFinancialItemInfo = array_merge($previousFinancialItem, array(
+        'amount' => $balanceTaxAmount,
+        'description' => $taxTerm,
+        'financial_account_id' => CRM_Contribute_BAO_Contribution::getFinancialAccountId($lineItem['financial_type_id']),
+      ));
+      CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
+    }
   }
 
   /**
@@ -268,7 +347,7 @@ WHERE fi.entity_id = {$lineItemID}
    * @return array $priceFields
    *      list of price fields
    */
-  public static function getPriceFieldLists() {
+  public static function getPriceFieldLists($contributionID) {
     $sql = "
 SELECT    pfv.id as pfv_id,
           pfv.label as pfv_label,
@@ -278,7 +357,11 @@ SELECT    pfv.id as pfv_id,
 FROM      civicrm_price_field_value as pfv
 LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
 LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
-WHERE  ps.extends = 2 AND ps.financial_type_id IS NOT NULL
+WHERE  ps.extends = 2 AND ps.financial_type_id IS NOT NULL AND pfv.id NOT IN (
+  SELECT li.price_field_value_id
+  FROM civicrm_line_item as li
+  WHERE li.contribution_id = {$contributionID} AND li.qty != 0
+)
 ORDER BY  ps.id, pf.weight ;
 ";
 
@@ -437,4 +520,20 @@ ORDER BY  ps.id, pf.weight ;
     return $adjustedTrxn;
   }
 
+  /**
+   * Function used to tell that given price field ID support variable Qty or not
+   *
+   * @param int $priceFieldValueID
+   *
+   * @return bool
+   *
+   */
+  public static function isPriceFieldSupportQtyChange($priceFieldValueID) {
+    $is_enter_qty = CRM_Core_DAO::singleValueQuery("SELECT pf.is_enter_qty
+      FROM civicrm_price_field pf
+      INNER JOIN civicrm_price_field_value pfv ON pfv.price_field_id = pf.id
+      WHERE pfv.id = {$priceFieldValueID}
+    ");
+    return (bool) $is_enter_qty;
+  }
 }

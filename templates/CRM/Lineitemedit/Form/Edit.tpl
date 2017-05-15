@@ -7,7 +7,7 @@
       {if in_array($fieldName, array('unit_price', 'line_total'))}
         {$currency}
       {/if}
-      <span id="content-{$fieldName}">{$form.$fieldName.html}</span>
+      <span>{$form.$fieldName.html}</span>
     </div>
     <div class="clear"></div>
 </div>

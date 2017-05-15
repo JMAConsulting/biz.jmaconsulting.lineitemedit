@@ -97,11 +97,24 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
   public static function formRule($fields, $files, $self) {
     $errors = array();
 
+    $canChangeQuantity = CRM_Lineitemedit_Util::isPriceFieldSupportQtyChange($fields['price_field_value_id']);
+
     if ($fields['line_total'] == 0) {
       $errors['line_total'] = ts('Line Total amount should not be empty');
     }
     if ($fields['qty'] == 0) {
       $errors['qty'] = ts('Line quantity cannot be zero');
+    }
+    if ($canChangeQuantity) {
+      $unitPrice = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $fields['price_field_value_id'], 'amount');
+      if ($unitPrice != $fields['unit_price']) {
+        $errors['unit_price'] = ts('You cannot change unit price of this text price field.');
+      }
+    }
+    else {
+      if ($fields['qty'] != 1) {
+        $errors['qty'] = ts('You cannot change quantity for this price field');
+      }
     }
 
     return $errors;
@@ -122,6 +135,18 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
       'price_field_value_id' => $values['price_field_value_id'],
       'financial_type_id' => $values['financial_type_id'],
     );
+
+    // check for any cancelled line item which was recorded for same price field,
+    //  if found then use its ID update it rather then creating a new line item as
+    //  civicrm doesn't allow multiple line item registered against same
+    //  contribution and price field ID
+    $previousLineItem = civicrm_api3('LineItem', 'get', array(
+      'contribution_id' => $this->_contributionID,
+      'price_field_value_id' => $values['price_field_value_id'],
+    ));
+    if (!empty($previousLineItem['id'])) {
+      $newLineItemParams['id'] = $previousLineItem['id'];
+    }
 
     if (!empty($values['tax_amount']) && $values['tax_amount'] != 0) {
       $newLineItemParams['tax_amount'] = $values['tax_amount'];
@@ -153,7 +178,7 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
 
     // record financial item on addition of lineitem
     if ($trxn) {
-      CRM_Lineitemedit_Util::insertFinancialItemOnAdd($newLineItem['id'], $taxAmount, $trxn);
+      CRM_Lineitemedit_Util::insertFinancialItemOnAdd($newLineItem['values'][$newLineItem['id']], $taxAmount, $trxn);
     }
 
     parent::postProcess();
