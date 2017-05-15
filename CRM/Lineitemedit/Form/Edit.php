@@ -158,9 +158,6 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     $taxAmount = CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($this->_lineitemInfo['contribution_id']);
     if (!empty($values['tax_amount']) && $values['tax_amount'] != 0) {
       $balanceTaxAmount = ($values['tax_amount'] - CRM_Utils_Array::value('tax_amount', $this->_lineitemInfo, 0));
-      if ($balanceTaxAmount != $values['tax_amount']) {
-        $taxAmount += $balanceTaxAmount;
-      }
     }
     $paidAmount = CRM_Utils_Array::value(
       'paid',
@@ -173,8 +170,6 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     );
 
     // Record adjusted amount by updating contribution info and create necessary financial trxns
-    CRM_Core_Error::debug_var('updtedAmount', $updatedAmount);
-    CRM_Core_Error::debug_var('$paidAmount', $paidAmount);
     $trxn = CRM_Lineitemedit_Util::recordAdjustedAmt(
       $updatedAmount,
       $paidAmount,
@@ -187,7 +182,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     if ($trxn) {
       CRM_Lineitemedit_Util::insertFinancialItemOnEdit(
         $this->_id,
-        $taxAmount,
+        $values['tax_amount'],
         $trxn,
         $recordChangedAttributes,
         $balanceAmount,

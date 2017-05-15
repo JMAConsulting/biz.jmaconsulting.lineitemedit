@@ -314,30 +314,53 @@ WHERE fi.entity_id = {$lineItemID}
         }
         CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
       }
-      elseif ($balanceAmount < 0) {
-        unset($previousFinancialItem['created_date']);
-        unset($previousFinancialItem['transaction_date']);
-        $previousFinancialItem['description'] = $lineItem['label'];
-        if ($recordChangedAttributes['financialTypeChanged']) {
-          $previousFinancialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
-            $lineItem['financial_type_id'],
-            'Accounts Receivable Account is'
-          );
-        }
-        CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
-      }
     }
 
-
+    // create financial item to record changed tax amount on edit
     if (!empty($recordChangedAttributes['taxAmountChanged'])) {
       $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
+      // insert new financial item related to sale tax
       $taxFinancialItemInfo = array_merge($previousFinancialItem, array(
-        'amount' => $balanceTaxAmount,
+        'amount' => $taxAmount,
         'description' => $taxTerm,
         'financial_account_id' => CRM_Contribute_BAO_Contribution::getFinancialAccountId($lineItem['financial_type_id']),
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid'),
       ));
+      unset($taxFinancialItemInfo['id']);
+
+      // update the financial item related to Sale tax if any
+      $previousTaxableFinancialItem = self::getPreviousTaxableFinancialItem($lineItemID);
+      if (!empty($previousTaxableFinancialItem['id'])) {
+        $taxFinancialItemInfo = $previousTaxableFinancialItem['values'][$previousTaxableFinancialItem['id']];
+        $taxFinancialItemInfo['amount'] = $taxAmount;
+        if ($taxFinancialItemInfo['status_id'] == 1) {
+          $taxFinancialItemInfo['status_id'] = 2;
+        }
+      }
+      // w/o id the sale tax related financial item is updated or inserted respectively
       CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
     }
+  }
+
+  /**
+   * Function used fetch the latest Sale tax related financial item
+   *
+   * @param int $entityId
+   *
+   * @return array
+   *       FinancialItem.Get API results
+   */
+  public static function getPreviousTaxableFinancialItem($entityId) {
+    $params = array(
+      'entity_id' => $entityId,
+      'entity_table' => 'civicrm_line_item',
+      'options' => array('limit' => 1, 'sort' => 'id DESC'),
+    );
+    $salesTaxFinancialAccounts = civicrm_api3('FinancialAccount', 'get', array('is_tax' => 1));
+    if ($salesTaxFinancialAccounts['count']) {
+      $params['financial_account_id'] = array('IN' => array_keys($salesTaxFinancialAccounts['values']));
+    }
+    return civicrm_api3('FinancialItem', 'get', $params);
   }
 
   /**
