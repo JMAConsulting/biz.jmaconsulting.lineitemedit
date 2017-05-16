@@ -190,7 +190,7 @@ WHERE fi.entity_id = {$lineItemID}
       unset($previousFinancialItemInfoValues['created_date']);
 
       // create financial item for deselected or cancelled line item
-      CRM_Financial_BAO_FinancialItem::create($previousFinancialItemInfoValues, NULL, $trxnId);
+      $financialItemDAO = CRM_Financial_BAO_FinancialItem::create($previousFinancialItemInfoValues, NULL, $trxnId);
 
       // insert financial item related to tax
       if (!empty($previousLineItemTaxAmount)) {
@@ -202,6 +202,10 @@ WHERE fi.entity_id = {$lineItemID}
         // create financial item for tax amount related to deselected or cancelled line item
         CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
       }
+
+      $lineItem = civicrm_api3('LineItem', 'getsingle', array('id' => $lineItemID));
+      $lineItem['financial_item_id'] = $financialItemDAO->id;
+      self::createDeferredTrxn($lineItem['contribution_id'], $lineItem);
     }
   }
 
@@ -245,7 +249,7 @@ WHERE fi.entity_id = {$lineItemID}
     $trxnId = array('id' => $trxn->id);
 
     // create financial item for added line item
-    CRM_Financial_BAO_FinancialItem::create($newFinancialItem, NULL, $trxnId);
+    $newFinancialItemDAO = CRM_Financial_BAO_FinancialItem::create($newFinancialItem, NULL, $trxnId);
     if (!empty($taxAmount) && is_numeric($taxAmount) && $taxAmount != 0) {
       $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
       $taxFinancialItemInfo = array_merge($newFinancialItem, array(
@@ -255,6 +259,63 @@ WHERE fi.entity_id = {$lineItemID}
       ));
       // create financial item for tax amount related to added line item
       CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
+    }
+
+    $lineItem['financial_item_id'] = $newFinancialItemDAO->id;
+    self::createDeferredTrxn($contribution['id'], $lineItem);
+  }
+
+  /**
+   * Function used to enter deferred revenue records upon add/edit/cancel of lineitem
+   *
+   * @param int $contributionID
+   * @param array $lineItem
+   *
+   */
+  public static function createDeferredTrxn($contributionID, $lineItem) {
+    if (CRM_Contribute_BAO_Contribution::checkContributeSettings('deferred_revenue_enabled')) {
+      $contributionDAO = new CRM_Contribute_DAO_Contribution();
+      $contributionDAO->id = $contributionID;
+      $contributionDAO->find(TRUE);
+      $revenueRecognitionDate = $contributionDAO->revenue_recognition_date;
+      if (!CRM_Utils_System::isNull($revenueRecognitionDate)) {
+        $results = civicrm_api3('EntityFinancialAccount', 'get', array(
+          'entity_table' => 'civicrm_financial_type',
+          'entity_id' => $lineItem['financial_type_id'],
+          'account_relationship' => array('IN' => array('Income Account is', 'Deferred Revenue Account is')),
+        ));
+        if ($results['count'] != 2) {
+          return;
+        }
+        $trxnParams = array(
+          'contribution_id' => $contributionDAO->id,
+          'fee_amount' => '0.00',
+          'currency' => $contributionDAO->currency,
+          'trxn_id' => $contributionDAO->trxn_id,
+          'status_id' => $contributionDAO->contribution_status_id,
+          'payment_instrument_id' => $contributionDAO->payment_instrument_id,
+          'check_number' => $contributionDAO->check_number,
+          'total_amount' => $lineItem['line_total'],
+          'trxn_date' => CRM_Utils_Date::isoToMysql($revenueRecognitionDate),
+        );
+        $accountRel = key(CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL, " AND v.name LIKE 'Income Account is' "));
+        foreach ($results['values'] as $result) {
+          if ($result['account_relationship'] == $accountRel) {
+            $trxnParams['to_financial_account_id'] = $result['financial_account_id'];
+          }
+          else {
+            $trxnParams['from_financial_account_id'] = $result['financial_account_id'];
+          }
+        }
+        $financialTxn = CRM_Core_BAO_FinancialTrxn::create($trxnParams);
+        $entityParams = array(
+          'entity_id' => $lineItem['financial_item_id'],
+          'entity_table' => 'civicrm_financial_item',
+          'amount' => $lineItem['line_total'],
+          'financial_trxn_id' => $financialTxn->id,
+        );
+        civicrm_api3('EntityFinancialTrxn', 'create', $entityParams);
+      }
     }
   }
 
@@ -284,6 +345,7 @@ WHERE fi.entity_id = {$lineItemID}
     $previousFinancialItem = CRM_Financial_BAO_FinancialItem::getPreviousFinancialItem($lineItemID);
     $trxnId = array('id' => $trxn->id);
     if ($recordChangedAttributes['amountChanged']) {
+      $financialItemDAO = NULL;
       if ($balanceAmount > 0) {
         unset($previousFinancialItem['created_date']);
         $previousFinancialItem['transaction_date'] = date('YmdHis');
@@ -296,7 +358,7 @@ WHERE fi.entity_id = {$lineItemID}
             'Accounts Receivable Account is'
           );
         }
-        CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
+        $financialItemDAO = CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
       }
       // create a new financial item recording the pending refund amount
       elseif ($balanceAmount < 0) {
@@ -312,8 +374,11 @@ WHERE fi.entity_id = {$lineItemID}
             'Accounts Receivable Account is'
           );
         }
-        CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
+        $financialItemDAO = CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
       }
+
+      $lineItem['financial_item_id'] = $financialItemDAO->id;
+      self::createDeferredTrxn($lineItem['contribution_id'], $lineItem);
     }
 
     // create financial item to record changed tax amount on edit
