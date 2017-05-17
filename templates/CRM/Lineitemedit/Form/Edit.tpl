@@ -4,7 +4,7 @@
 <div class="crm-section">
     <div class="label">{$form.$fieldName.label}</div>
     <div class="content">
-      {if in_array($fieldName, array('unit_price', 'line_total'))}
+      {if in_array($fieldName, array('unit_price', 'line_total', 'tax_amount'))}
         {$currency}
       {/if}
       <span>{$form.$fieldName.html}</span>
