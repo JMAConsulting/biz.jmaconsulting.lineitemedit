@@ -95,9 +95,8 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     }
     $this->assign('fieldNames', $fieldNames);
 
-    if (in_array('tax_amount', $fieldNames)) {
-      $this->assign('taxRates', json_encode(CRM_Core_PseudoConstant::getTaxRates()));
-    }
+    $this->assign('taxRates', json_encode(CRM_Core_PseudoConstant::getTaxRates()));
+
 
     $this->addFormRule(array(__CLASS__, 'formRule'), $this);
 
