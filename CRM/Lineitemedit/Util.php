@@ -20,8 +20,6 @@ class CRM_Lineitemedit_Util {
       $lineItems = $lineItems['values'];
     }
 
-    $membershipID = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipPayment', $order['contribution_id'], 'membership_id', 'contribution_id');
-
     $lineItemTable = array(
       'rows' => array(),
     );
@@ -53,6 +51,9 @@ class CRM_Lineitemedit_Util {
       $actions = array(
         'id' => $lineItem['id'],
       );
+      if ($lineItem['entity_table'] != 'civicrm_contribution') {
+        unset($links[CRM_Core_Action::DELETE]);
+      }
       $lineItemTable['rows'][$key] = array(
         'id' => $lineItem['id'],
         'item' => $lineItem['label'],
@@ -61,7 +62,7 @@ class CRM_Lineitemedit_Util {
         'unit_price' => $lineItem['unit_price'],
         'total_price' => $lineItem['line_total'],
         'currency' => $order['currency'],
-        'actions' => (empty($membershipID) || $lineItem['qty'] == 0) ? CRM_Core_Action::formLink($links, $mask, $actions) : '',
+        'actions' => ($lineItem['qty'] != 0) ? CRM_Core_Action::formLink($links, $mask, $actions) : '',
       );
     }
 
@@ -441,21 +442,37 @@ SELECT    pfv.id as pfv_id,
           pfv.label as pfv_label,
           ps.title as ps_label,
           ps.is_quick_config as is_quick,
-          ps.id
+          ps.id as set_id
 FROM      civicrm_price_field_value as pfv
 LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
 LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
-WHERE  ps.extends = 2 AND ps.financial_type_id IS NOT NULL AND pfv.id NOT IN (
-  SELECT li.price_field_value_id
-  FROM civicrm_line_item as li
-  WHERE li.contribution_id = {$contributionID} AND li.qty != 0
+WHERE  pfv.membership_type_id IS NULL AND
+( ps.is_quick_config = 1 OR pfv.id NOT IN (
+   SELECT li.price_field_value_id
+    FROM civicrm_line_item as li
+    WHERE li.contribution_id = {$contributionID} AND li.qty != 0
+  )
 )
 ORDER BY  ps.id, pf.weight ;
 ";
 
     $dao = CRM_Core_DAO::executeQuery($sql);
+
+    // fetch the price-set that belong to the contribution's line_item's price field
+    $priceSetID = CRM_Core_DAO::singleValueQuery("SELECT ps.id
+      FROM civicrm_line_item AS li
+      INNER JOIN civicrm_price_field AS pf ON li.price_field_id = pf.id
+      INNER JOIN civicrm_price_set AS ps ON pf.price_set_id = ps.id
+      WHERE li.contribution_id = {$contributionID}"
+    );
+
     $priceFields = array();
     while ($dao->fetch()) {
+      // exclude price fields which belong to other price-set that the existing contribution
+      //  doesn't have any lineitem
+      if ($dao->set_id != $priceSetID) {
+        continue;
+      }
       $isQuickConfigSpecialChar = ($dao->is_quick == 1) ? '<b>*</b>' : '';
       $priceFields[$dao->pfv_id] = sprintf("%s%s :: %s", $isQuickConfigSpecialChar, $dao->ps_label, $dao->pfv_label);
     }
