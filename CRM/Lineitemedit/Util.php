@@ -78,16 +78,6 @@ class CRM_Lineitemedit_Util {
    *   HTML anchor tag of 'Add Item(s)' action
    */
   public static function getAddLineItemLink($contributionID) {
-    // don't show Add Item(s) if the contribution is related to membership payment
-    if (CRM_Core_DAO::getFieldValue(
-      'CRM_Member_DAO_MembershipPayment',
-      $contributionID,
-      'membership_id',
-      'contribution_id'
-    )) {
-      return '';
-    }
-
     $permissions = array(CRM_Core_Permission::VIEW);
     if (CRM_Core_Permission::check('edit contributions')) {
       $permissions[] = CRM_Core_Permission::EDIT;
@@ -128,15 +118,23 @@ class CRM_Lineitemedit_Util {
       if ($records != 'skip') {
         foreach ($records as $lineItemID => $lineItem) {
           // do not show cancel and edit actions on membership OR if the item is already cancelled
-          if ($lineItem['entity_table'] == 'civicrm_membership' || $lineItem['qty'] == 0) {
+          if ($lineItem['qty'] == 0) {
             continue;
           }
-          $actionlinks = sprintf("
-            <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>
-            <a class='action-item crm-hover-button' href=%s title='Cancel Item'><i class='crm-i fa-times'></i></a>",
-            CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID),
-            CRM_Utils_System::url('civicrm/lineitem/cancel', 'reset=1&id=' . $lineItemID)
-          );
+          if ($lineItem['entity_table'] != 'civicrm_contribution') {
+            $actionlinks = sprintf("
+              <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>",
+              CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID)
+            );
+          }
+          else {
+            $actionlinks = sprintf("
+              <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>
+              <a class='action-item crm-hover-button' href=%s title='Cancel Item'><i class='crm-i fa-times'></i></a>",
+              CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID),
+              CRM_Utils_System::url('civicrm/lineitem/cancel', 'reset=1&id=' . $lineItemID)
+            );
+          }
           if ($lineItem['field_title'] && $lineItem['html_type'] != 'Text') {
             $lineItems[$priceSetID][$lineItemID]['field_title'] = $actionlinks . $lineItems[$priceSetID][$lineItemID]['field_title'];
           }
