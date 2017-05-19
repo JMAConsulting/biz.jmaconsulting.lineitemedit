@@ -612,6 +612,7 @@ ORDER BY  ps.id, pf.weight ;
         'from_financial_account_id' => NULL,
         'to_financial_account_id' => $toFinancialAccount,
         'total_amount' => $balanceAmt,
+        'net_amount' => $balanceAmt,
         'status_id' => $completedStatusId,
         'payment_instrument_id' => $updatedContribution->payment_instrument_id,
         'contribution_id' => $updatedContribution->id,
