@@ -87,6 +87,12 @@ class CRM_Lineitemedit_Util {
     }
     $mask = CRM_Core_Action::mask($permissions);
 
+    // don't show 'Add Item' action link if all the non-quick-config price-field options are used or
+    //  quick-config price field is used for the existing contribution
+    if (self::getPriceFieldLists($contributionID, TRUE) == 0) {
+      return '';
+    }
+
     $links = array(
       CRM_Core_Action::ADD => array(
         'name' => ts('Add Item(s)'),
@@ -431,10 +437,10 @@ WHERE fi.entity_id = {$lineItemID}
    * Function used to return list of price fields,
    *   later used in 'Add item' form
    *
-   * @return array $priceFields
-   *      list of price fields
+   * @return array|int $priceFields
+   *      list of price fields OR count of price fields
    */
-  public static function getPriceFieldLists($contributionID) {
+  public static function getPriceFieldLists($contributionID, $getCount = FALSE) {
     $sql = "
 SELECT    pfv.id as pfv_id,
           pfv.label as pfv_label,
@@ -445,12 +451,11 @@ FROM      civicrm_price_field_value as pfv
 LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
 LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
 WHERE  pfv.membership_type_id IS NULL AND
-( ps.is_quick_config = 1 OR pfv.id NOT IN (
+  pfv.id NOT IN (
    SELECT li.price_field_value_id
     FROM civicrm_line_item as li
     WHERE li.contribution_id = {$contributionID} AND li.qty != 0
   )
-)
 ORDER BY  ps.id, pf.weight ;
 ";
 
@@ -473,6 +478,10 @@ ORDER BY  ps.id, pf.weight ;
       }
       $isQuickConfigSpecialChar = ($dao->is_quick == 1) ? '<b>*</b>' : '';
       $priceFields[$dao->pfv_id] = sprintf("%s%s :: %s", $isQuickConfigSpecialChar, $dao->ps_label, $dao->pfv_label);
+    }
+
+    if ($getCount) {
+      return count($priceFields);
     }
 
     return $priceFields;
