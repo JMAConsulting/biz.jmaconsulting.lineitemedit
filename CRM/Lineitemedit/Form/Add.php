@@ -121,9 +121,15 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
   public function postProcess() {
     $values = $this->exportValues();
 
+    list($entityTable, $entityID) = CRM_Lineitemedit_Util::addEntity(
+      $values['price_field_value_id'],
+      $this->_contributionID,
+      $values['qty']
+    );
+
     $newLineItemParams = array(
-      'entity_table' => 'civicrm_contribution',
-      'entity_id' => $this->_contributionID,
+      'entity_table' => $entityTable,
+      'entity_id' => $entityID,
       'contribution_id' => $this->_contributionID,
       'price_field_id' => CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $values['price_field_value_id'], 'price_field_id'),
       'label' => $values['label'],
@@ -144,6 +150,9 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
     ));
     if (!empty($previousLineItem['id'])) {
       $newLineItemParams['id'] = $previousLineItem['id'];
+      if ($entityTable == 'civicrm_participant') {
+        $newLineItemParams['label'] = $previousLineItem['label'];
+      }
     }
 
     if (!empty($values['tax_amount']) && $values['tax_amount'] != 0) {

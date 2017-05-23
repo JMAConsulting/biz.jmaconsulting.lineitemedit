@@ -127,16 +127,6 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     if ($fields['qty'] == 0) {
       $errors['qty'] = ts('Line quantity cannot be zero');
     }
-    if ($self->_lineitemInfo['entity_table'] == 'civicrm_membership') {
-      $minimumFee = CRM_Core_DAO::singleValueQuery("SELECT mt.minimum_fee
-        FROM civicrm_membership m
-        INNER JOIN civicrm_membership_type mt ON m.membership_type_id = mt.id
-        WHERE m.id = " . $self->_lineitemInfo['entity_id']
-      );
-      if ($fields['line_total'] < $minimumFee) {
-        $errors['line_total'] = ts('The total amount cannot be less than the minimum fee of selected membership type');
-      }
-    }
 
     return $errors;
   }

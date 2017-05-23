@@ -125,20 +125,13 @@ class CRM_Lineitemedit_Util {
           if ($lineItem['qty'] == 0) {
             continue;
           }
-          if ($lineItem['entity_table'] != 'civicrm_contribution') {
-            $actionlinks = sprintf("
-              <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>",
-              CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID)
-            );
-          }
-          else {
-            $actionlinks = sprintf("
-              <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>
-              <a class='action-item crm-hover-button' href=%s title='Cancel Item'><i class='crm-i fa-times'></i></a>",
-              CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID),
-              CRM_Utils_System::url('civicrm/lineitem/cancel', 'reset=1&id=' . $lineItemID)
-            );
-          }
+
+          $actionlinks = sprintf("
+            <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>
+            <a class='action-item crm-hover-button' href=%s title='Cancel Item'><i class='crm-i fa-times'></i></a>",
+            CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID),
+            CRM_Utils_System::url('civicrm/lineitem/cancel', 'reset=1&id=' . $lineItemID)
+          );
           if ($lineItem['field_title'] && $lineItem['html_type'] != 'Text') {
             $lineItems[$priceSetID][$lineItemID]['field_title'] = $actionlinks . $lineItems[$priceSetID][$lineItemID]['field_title'];
           }
@@ -675,4 +668,82 @@ ORDER BY  ps.id, pf.weight ;
         break;
     }
   }
+
+  /**
+   * Function used to add membership or participant record on adding related line-item
+   *
+   * @param int $priceFieldValueID
+   * @param int $contributionID
+   * @param int $qty
+   *
+   * @return array
+   */
+  public static function addEntity($priceFieldValueID, $contributionID, $qty) {
+    $entityInfo = $eventID = NULL;
+    $entityTable = 'civicrm_contribution';
+    $entityID = $contributionID;
+
+    $sql = "
+    SELECT pf.price_set_id as ps_id, pfv.membership_type_id mt_id, pfv.membership_num_terms m_nt, pfv.label as pfv_label, pfv.amount as pfv_amount
+    FROM civicrm_price_field pf
+    INNER JOIN civicrm_price_field_value pfv ON pfv.price_field_id = pf.id
+    WHERE pfv.id = %1
+     ";
+
+     $dao = CRM_Core_DAO::executeQuery($sql, array(1 => array($priceFieldValueID, 'Integer')));
+     while ($dao->fetch()) {
+       $entityInfo = $dao->toArray();
+       break;
+     }
+
+     if (!empty($entityInfo['mt_id'])) {
+       $entityTable = 'civicrm_membership';
+     }
+     else {
+       $eventID = CRM_Core_DAO::singleValueQuery("
+        SELECT entity_id FROM civicrm_price_set_entity
+          WHERE `entity_table` = 'civicrm_event' AND `price_set_id` = " . $entityInfo['ps_id']
+       );
+       $entityTable = $eventID ? 'civicrm_participant' : $entityTable;
+     }
+
+     switch ($entityTable) {
+       case 'civicrm_membership':
+        $memTypeNumTerms = CRM_Utils_Array::value('m_nt', $entityInfo, 1);
+        // NOTE: membership.create API already calculate membership dates
+        $membership = civicrm_api3('Membership', 'create', array(
+          'membership_type_id' => $entityInfo['mt_id'],
+          'contact_id' => CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $contributionID, 'contact_id'),
+          'num_terms' => $memTypeNumTerms,
+        ));
+        $entityID = $membership['id'];
+        civicrm_api3('MembershipPayment', 'create', array(
+          'membership_id' => $entityID,
+          'contribution_id' => $contributionID,
+        ));
+        break;
+
+       case 'civicrm_participant':
+        $roleIDs = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $eventID, 'default_role_id');
+        $roleIDs = (array) explode(CRM_Core_DAO::VALUE_SEPARATOR, $roleIDs);
+        $feeLevel = sprintf("%s - %d", $entityInfo['pfv_label'], (int) $qty);
+        $participant = civicrm_api3('Participant', 'create', array(
+          'event_id' => $eventID,
+          'contact_id' => CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $contributionID, 'contact_id'),
+          'role_id' => $roleIDs,
+          'fee_amount' => $entityInfo['pfv_amount'],
+          'fee_level' => $feeLevel,
+          'is_pay_later' => 1,
+        ));
+        $entityID = $participant['id'];
+        civicrm_api3('ParticipantPayment', 'create', array(
+          'participant_id' => $entityID,
+          'contribution_id' => $contributionID,
+        ));
+        break;
+     }
+
+     return array($entityTable, $entityID);
+  }
+
 }
