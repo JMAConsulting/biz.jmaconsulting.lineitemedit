@@ -51,9 +51,7 @@ class CRM_Lineitemedit_Util {
       $actions = array(
         'id' => $lineItem['id'],
       );
-      if ($lineItem['entity_table'] != 'civicrm_contribution') {
-        unset($links[CRM_Core_Action::DELETE]);
-      }
+
       $lineItemTable['rows'][$key] = array(
         'id' => $lineItem['id'],
         'item' => $lineItem['label'],
@@ -88,7 +86,7 @@ class CRM_Lineitemedit_Util {
     $mask = CRM_Core_Action::mask($permissions);
 
     // don't show 'Add Item' action link if all the non-quick-config price-field options are used or
-    //  quick-config price field is used for the existing contribution
+    //   quick-config price field is used for the existing contribution
     if (self::getPriceFieldLists($contributionID, TRUE) == 0) {
       return '';
     }
@@ -450,8 +448,7 @@ SELECT    pfv.id as pfv_id,
 FROM      civicrm_price_field_value as pfv
 LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
 LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
-WHERE  pfv.membership_type_id IS NULL AND
-  pfv.id NOT IN (
+WHERE  pfv.id NOT IN (
    SELECT li.price_field_value_id
     FROM civicrm_line_item as li
     WHERE li.contribution_id = {$contributionID} AND li.qty != 0
@@ -648,5 +645,34 @@ ORDER BY  ps.id, pf.weight ;
       WHERE pfv.id = {$priceFieldValueID}
     ");
     return (bool) $is_enter_qty;
+  }
+
+  /**
+   * Function used to cancel membership or participant registration
+   *
+   * @param int $entityID
+   * @param string $entityTable
+   *
+   */
+  public static function cancelEntity($entityID, $entityTable) {
+    switch ($entityTable) {
+      case 'civicrm_membership':
+        $cancelStatusID =  array_search('Cancelled', CRM_Member_PseudoConstant::membershipStatus(NULL, " name = 'Cancelled' ", 'name', FALSE, TRUE));
+        civicrm_api3('Membership', 'create', array(
+          'id' => $entityID,
+          'status_id' => $cancelStatusID,
+        ));
+        break;
+
+      case 'civicrm_participant':
+        civicrm_api3('Participant', 'create', array(
+          'id' => $entityID,
+          'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'status_id', 'Cancelled'),
+        ));
+        break;
+
+      default:
+        break;
+    }
   }
 }

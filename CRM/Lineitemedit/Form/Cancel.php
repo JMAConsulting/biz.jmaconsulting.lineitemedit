@@ -55,10 +55,13 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
     //TODO: lineItem.Get API doesn't fetch tax amount
     $previousTaxAmount = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_LineItem', $this->_id, 'tax_amount');
 
+    CRM_Lineitemedit_Util::cancelEntity($this->_lineitemInfo['entity_id'], $this->_lineitemInfo['entity_table']);
+
     // change total_price and qty of current line item to 0, on cancel
     civicrm_api3('LineItem', 'create', array(
       'id' => $this->_id,
       'qty' => 0,
+      'participant_count' => 0,
       'line_total' => 0.00,
       'tax_amount' => NULL,
     ));
