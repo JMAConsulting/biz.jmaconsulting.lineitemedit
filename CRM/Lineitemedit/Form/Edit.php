@@ -158,6 +158,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_lineitemInfo['contribution_id']);
     $taxAmount = CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($this->_lineitemInfo['contribution_id']);
+    $balanceTaxAmount = NULL;
     if (!empty($values['tax_amount']) && $values['tax_amount'] != 0) {
       $balanceTaxAmount = ($values['tax_amount'] - CRM_Utils_Array::value('tax_amount', $this->_lineitemInfo, 0));
     }
@@ -184,7 +185,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     if ($trxn) {
       CRM_Lineitemedit_Util::insertFinancialItemOnEdit(
         $this->_id,
-        $values['tax_amount'],
+        CRM_Utils_Array::value('tax_amount', $values),
         $trxn,
         $recordChangedAttributes,
         $balanceAmount,

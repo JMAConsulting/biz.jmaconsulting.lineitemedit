@@ -354,6 +354,7 @@ WHERE fi.entity_id = {$lineItemID}
             'Accounts Receivable Account is'
           );
         }
+        self::cancelPreviousFinancialTrxn($previousFinancialItem['id']);
         $financialItemDAO = CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
       }
       // create a new financial item recording the pending refund amount
@@ -403,6 +404,24 @@ WHERE fi.entity_id = {$lineItemID}
     }
   }
 
+  public static function cancelPreviousFinancialTrxn($financialItemID) {
+    $sql = "SELECT ft.* FROM civicrm_financial_trxn ft
+      INNER JOIN civicrm_entity_financial_trxn eft ON eft.financial_trxn_id = ft.id
+      WHERE eft.entity_id = {$financialItemID} AND
+       eft.entity_table = 'civicrm_financial_item' AND
+       ft.is_payment = 0 AND
+       ft.from_financial_account_id IS NULL
+    ";
+    $dao = CRM_Core_DAO::executeQuery($sql);
+    while ($dao->fetch()) {
+      $financialTrxn = $dao->toArray();
+      if ($financialTrxn['total_amount'] > 0) {
+        $financialTrxn['total_amount'] = $financialTrxn['net_amount'] = -$financialTrxn['total_amount'];
+        $financialTrxn['is_payment'] = 1;
+        civicrm_api3('FinancialTrxn', 'create', $financialTrxn);
+      }
+    }
+  }
   /**
    * Function used fetch the latest Sale tax related financial item
    *
