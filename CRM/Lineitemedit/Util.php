@@ -454,6 +454,7 @@ WHERE fi.entity_id = {$lineItemID}
     $sql = "
 SELECT    pfv.id as pfv_id,
           pfv.label as pfv_label,
+          pf.id as pf_id,
           ps.title as ps_label,
           ps.is_quick_config as is_quick,
           ps.id as set_id
@@ -467,8 +468,18 @@ WHERE  pfv.id NOT IN (
   )
 ORDER BY  ps.id, pf.weight ;
 ";
-
     $dao = CRM_Core_DAO::executeQuery($sql);
+
+    $dao1 = CRM_Core_DAO::executeQuery("
+    SELECT pf.id
+     FROM civicrm_line_item as li
+     INNER JOIN civicrm_price_field pf ON pf.id = li.price_field_id
+     WHERE li.contribution_id = {$contributionID} AND li.qty != 0 AND pf.html_type <> 'Checkbox'
+    ");
+    $excludePriceFields = array();
+    while ($dao1->fetch()) {
+      $excludePriceFields[] = $dao1->id;
+    }
 
     // fetch the price-set that belong to the contribution's line_item's price field
     $priceSetID = CRM_Core_DAO::singleValueQuery("SELECT ps.id
@@ -482,7 +493,7 @@ ORDER BY  ps.id, pf.weight ;
     while ($dao->fetch()) {
       // exclude price fields which belong to other price-set that the existing contribution
       //  doesn't have any lineitem
-      if ($dao->set_id != $priceSetID) {
+      if (($dao->set_id != $priceSetID) || in_array($dao->pf_id, $excludePriceFields)) {
         continue;
       }
       $isQuickConfigSpecialChar = ($dao->is_quick == 1) ? '<b>*</b>' : '';
