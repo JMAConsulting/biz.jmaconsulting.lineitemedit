@@ -128,7 +128,7 @@ class CRM_Lineitemedit_Util {
 
           $actionlinks = sprintf("
             <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>
-            <a class='action-item crm-hover-button' href=%s title='Cancel Item'><i class='crm-i fa-times'></i></a>",
+            <a class='action-item crm-hover-button' href=%s title='Cancel Item'><i class='crm-i fa-undo'></i></a>",
             CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID),
             CRM_Utils_System::url('civicrm/lineitem/cancel', 'reset=1&id=' . $lineItemID)
           );
