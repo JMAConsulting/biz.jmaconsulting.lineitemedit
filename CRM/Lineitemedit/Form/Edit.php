@@ -172,6 +172,37 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       )
     );
 
+    $previousFinancialItem = CRM_Financial_BAO_FinancialItem::getPreviousFinancialItem($this->_id);
+
+    if ($balanceAmount != 0 && $recordChangedAttributes['financialTypeChanged']) {
+      // cancel any previous financial item
+      $previousFinancialItem = civicrm_api3('FinancialItem', 'getsingle', array(
+        'entity_table' => 'civicrm_line_item',
+        'entity_id' => $this->_id,
+        'amount' => $this->_lineitemInfo['line_total'],
+        'options' => array(
+          'limit' => 1,
+          'sort' => 'id DESC',
+        ),
+      ));
+
+      // insert a new financial trxn with cancelled amount
+      unset($previousFinancialItem['id']);
+      civicrm_api3('FinancialItem', 'create', array_merge($previousFinancialItem, array(
+        'amount' => -$this->_lineitemInfo['line_total'],
+      )));
+
+      // insert a new financial item with updated Amount
+      civicrm_api3('FinancialItem', 'create', array_merge($previousFinancialItem, array(
+        'amount' => $values['line_total'],
+        'description' => $values['label'],
+        'financial_account_id' => CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
+          $values['financial_type_id'],
+            'Accounts Receivable Account is'
+        ),
+      )));
+    }
+
     // Record adjusted amount by updating contribution info and create necessary financial trxns
     $trxn = CRM_Lineitemedit_Util::recordAdjustedAmt(
       $updatedAmount,
@@ -181,7 +212,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       NULL
     );
 
-    // record financial item on edit of lineitem
+    // Record financial item on edit of lineitem
     if ($trxn) {
       CRM_Lineitemedit_Util::insertFinancialItemOnEdit(
         $this->_id,

@@ -339,6 +339,7 @@ WHERE fi.entity_id = {$lineItemID}
     ));
 
     $previousFinancialItem = CRM_Financial_BAO_FinancialItem::getPreviousFinancialItem($lineItemID);
+
     $trxnId = array('id' => $trxn->id);
     if ($recordChangedAttributes['amountChanged']) {
       $financialItemDAO = NULL;
@@ -642,7 +643,7 @@ ORDER BY  ps.id, pf.weight ;
         'to_financial_account_id' => $toFinancialAccount,
         'total_amount' => $balanceAmt,
         'net_amount' => $balanceAmt,
-        'status_id' => $completedStatusId,
+        'status_id' => $updatedContribution->contribution_status_id,
         'payment_instrument_id' => $updatedContribution->payment_instrument_id,
         'contribution_id' => $updatedContribution->id,
         'trxn_date' => date('YmdHis'),
