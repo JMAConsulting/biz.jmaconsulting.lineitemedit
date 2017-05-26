@@ -223,7 +223,7 @@ WHERE fi.entity_id = {$lineItemID}
 
     // check if the financial type of related contribution and new line item is different,
     //  if yes then update the financial_trxn.to_financial_account_id, identified by $trxn->id
-    if ($contribution['financial_type_id'] != $lineitem['financial_type_id']) {
+    if ($contribution['financial_type_id'] != $lineItem['financial_type_id']) {
       CRM_Core_DAO::setFieldValue('CRM_Financial_DAO_FinancialTrxn',
         $trxn->id,
         'to_financial_account_id',

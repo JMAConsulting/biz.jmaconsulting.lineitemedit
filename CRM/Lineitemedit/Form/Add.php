@@ -187,8 +187,7 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
     if ($trxn) {
       CRM_Lineitemedit_Util::insertFinancialItemOnAdd($newLineItem['values'][$newLineItem['id']], $taxAmount, $trxn);
     }
-
-    parent::postProcess();
+    CRM_Core_Session::singleton()->pushUserContext(CRM_Utils_System::url(CRM_Utils_System::currentPath()));
   }
 
 }
