@@ -130,7 +130,7 @@ function lineitemedit_civicrm_buildForm($formName, &$form) {
     ($form->_action & CRM_Core_Action::UPDATE)
   ) {
     $contributionID = $form->_id;
-
+    $pricesetFieldsCount = NULL;
     $isQuickConfig = empty($form->_lineItems) ? TRUE : FALSE;
     // Append line-item table only if current contribution has quick config lineitem
     if ($isQuickConfig) {
@@ -142,17 +142,19 @@ function lineitemedit_civicrm_buildForm($formName, &$form) {
       $templatePath = realpath(dirname(__FILE__) . "/templates");
       // dynamically insert a template block in the page
       CRM_Core_Region::instance('page-header')->add(array(
-        'template' => "{$templatePath}/LineItemInfo.tpl"
+        'template' => "CRM/Price/Form/LineItemInfo.tpl"
       ));
     }
     else {
-      CRM_Lineitemedit_Util::formatLineItemList($form->_lineItems);
+      $pricesetFieldsCount = CRM_Core_Smarty::singleton()->get_template_vars('pricesetFieldsCount');
+      CRM_Lineitemedit_Util::formatLineItemList($form->_lineItems, $pricesetFieldsCount);
       $form->assign('lineItem', $form->_lineItems);
+      $form->assign('pricesetFieldsCount', TRUE);
     }
-
     CRM_Core_Resources::singleton()->addVars('lineitemedit', array(
       'add_link' => CRM_Lineitemedit_Util::getAddLineItemLink($contributionID),
       'isQuickConfig' => $isQuickConfig,
+      'hideHeader' => !$pricesetFieldsCount,
     ));
     CRM_Core_Resources::singleton()->addScriptFile('biz.jmaconsulting.lineitemedit', 'js/add_item_link.js');
   }

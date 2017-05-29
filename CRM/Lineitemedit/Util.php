@@ -25,16 +25,18 @@ class CRM_Lineitemedit_Util {
     );
     $links = array(
       CRM_Core_Action::UPDATE => array(
-        'name' => ts('Edit'),
+        'name' => ts(''),
         'url' => 'civicrm/lineitem/edit',
         'qs' => 'reset=1&id=%%id%%',
         'title' => ts('Edit Line item'),
+        'ref' => ' crm-i fa-pencil ',
       ),
       CRM_Core_Action::DELETE => array(
-        'name' => ts('Cancel'),
+        'name' => ts(''),
         'url' => 'civicrm/lineitem/cancel',
         'qs' => 'reset=1&id=%%id%%',
         'title' => ts('Cancel Line item'),
+        'ref' => ' crm-i fa-undo ',
       ),
     );
 
@@ -117,7 +119,7 @@ class CRM_Lineitemedit_Util {
    *   list of lineitems
    *
    */
-  public static function formatLineItemList(&$lineItems) {
+  public static function formatLineItemList(&$lineItems, $isParticipantCount) {
     foreach ($lineItems as $priceSetID => $records) {
       if ($records != 'skip') {
         foreach ($records as $lineItemID => $lineItem) {
@@ -132,12 +134,10 @@ class CRM_Lineitemedit_Util {
             CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID),
             CRM_Utils_System::url('civicrm/lineitem/cancel', 'reset=1&id=' . $lineItemID)
           );
-          if ($lineItem['field_title'] && $lineItem['html_type'] != 'Text') {
-            $lineItems[$priceSetID][$lineItemID]['field_title'] = $actionlinks . $lineItems[$priceSetID][$lineItemID]['field_title'];
+          if (!$isParticipantCount) {
+            $lineItems[$priceSetID][$lineItemID]['participant_count'] = '';
           }
-          else {
-            $lineItems[$priceSetID][$lineItemID]['label'] = $actionlinks . $lineItems[$priceSetID][$lineItemID]['label'];
-          }
+          $lineItems[$priceSetID][$lineItemID]['participant_count'] = $lineItems[$priceSetID][$lineItemID]['participant_count'] . "</td><td>{$actionlinks}</td>" ;
         }
       }
     }
