@@ -79,12 +79,6 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
         CRM_Financial_BAO_FinancialType::getAvailableFinancialTypes($financialTypes);
         $properties['options'] = $financialTypes;
       }
-      // In case of quickconfig price field we cannot change quantity
-      if ($fieldName == 'qty') {
-        if ($this->_isQuickConfig || $this->_priceFieldInfo['is_enter_qty'] == 0) {
-          $properties['readonly'] = TRUE;
-        }
-      }
       // In case of text non-quickconfig price field we cannot change the unit price
       elseif (($this->_priceFieldInfo['is_enter_qty'] == 1 && $fieldName == 'unit_price') || $fieldName == 'tax_amount') {
         $properties['readonly'] = TRUE;
@@ -127,6 +121,11 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     if ($fields['qty'] == 0) {
       $errors['qty'] = ts('Line quantity cannot be zero');
     }
+    if (!CRM_Utils_Rule::integer($fields['qty'])) {
+      if ($self->_isQuickConfig || $self->_priceFieldInfo['is_enter_qty'] == 0) {
+        $errors['qty'] = ts('Please enter a whole number quantity');
+      }
+    }
 
     return $errors;
   }
@@ -154,6 +153,16 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       'line_total' => $values['line_total'],
       'tax_amount' => CRM_Utils_Array::value('tax_amount', $values, NULL),
     ));
+
+    if ($this->_lineitemInfo['entity_table'] == 'civicrm_membership') {
+      $memberNumTerms = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $this->_lineitemInfo['price_field_value_id'], 'membership_num_terms');
+      $memberNumTerms = empty($memberNumTerms) ? 1 : $memberNumTerms;
+      $memberNumTerms = $values['qty'] * $memberNumTerms;
+      civicrm_api3('Membership', 'create', array(
+        'id' => $this->_lineitemInfo['entity_id'],
+        'num_terms' => $memberNumTerms,
+      ));
+    }
 
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_lineitemInfo['contribution_id']);

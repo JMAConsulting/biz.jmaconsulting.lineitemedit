@@ -110,8 +110,8 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
       }
     }
     else {
-      if ($fields['qty'] != 1) {
-        $errors['qty'] = ts('You cannot change quantity for this price field');
+      if (!CRM_Utils_Rule::integer($fields['qty'])) {
+        $errors['qty'] = ts('Please enter a whole number quantity.');
       }
     }
 

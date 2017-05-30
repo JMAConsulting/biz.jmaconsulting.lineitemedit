@@ -748,6 +748,7 @@ ORDER BY  ps.id, pf.weight ;
      switch ($entityTable) {
        case 'civicrm_membership':
         $memTypeNumTerms = CRM_Utils_Array::value('m_nt', $entityInfo, 1);
+        $memTypeNumTerms = $qty * $memTypeNumTerms;
         // NOTE: membership.create API already calculate membership dates
         $membership = civicrm_api3('Membership', 'create', array(
           'membership_type_id' => $entityInfo['mt_id'],
