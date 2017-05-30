@@ -216,10 +216,17 @@ WHERE fi.entity_id = {$lineItemID}
   public static function insertFinancialItemOnAdd($lineItem, $taxAmount, $trxn) {
     $contribution = civicrm_api3('Contribution', 'getsingle', array('id' => $lineItem['contribution_id']));
 
-    $ARFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
+    $revenueFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
       $lineItem['financial_type_id'],
-      'Accounts Receivable Account is'
+      'Income Account is'
     );
+
+    if (!empty($contribution['revenue_recognition_date'])) {
+      $revenueFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
+        $lineItem['financial_type_id'],
+        'Deferred Revenue Account is'
+      );
+    }
 
     // check if the financial type of related contribution and new line item is different,
     //  if yes then update the financial_trxn.to_financial_account_id, identified by $trxn->id
@@ -227,7 +234,7 @@ WHERE fi.entity_id = {$lineItemID}
       CRM_Core_DAO::setFieldValue('CRM_Financial_DAO_FinancialTrxn',
         $trxn->id,
         'to_financial_account_id',
-        $ARFinancialAccountID
+        $revenueFinancialAccountID
       );
     }
 
@@ -237,7 +244,7 @@ WHERE fi.entity_id = {$lineItemID}
       'description' => $lineItem['label'],
       'amount' => $lineItem['line_total'],
       'currency' => $contribution['currency'],
-      'financial_account_id' => $ARFinancialAccountID,
+      'financial_account_id' => $revenueFinancialAccountID,
       'status_id' => array_search('Unpaid', CRM_Core_PseudoConstant::get('CRM_Financial_DAO_FinancialItem', 'status_id')),
       'entity_table' => 'civicrm_line_item',
       'entity_id' => $lineItem['id'],
