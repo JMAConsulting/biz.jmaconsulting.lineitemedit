@@ -350,40 +350,58 @@ WHERE fi.entity_id = {$lineItemID}
     $trxnId = array('id' => $trxn->id);
     if ($recordChangedAttributes['amountChanged']) {
       $financialItemDAO = NULL;
-      if ($balanceAmount > 0) {
-        unset($previousFinancialItem['created_date']);
-        $previousFinancialItem['transaction_date'] = date('YmdHis');
-        $previousFinancialItem['description'] = $lineItem['label'];
-        $previousFinancialItem['amount'] = $lineItem['line_total'];
-        $previousFinancialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Partially paid');
-        if ($recordChangedAttributes['financialTypeChanged']) {
-          $previousFinancialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
-            $lineItem['financial_type_id'],
-            'Accounts Receivable Account is'
-          );
-        }
-        self::cancelPreviousFinancialTrxn($previousFinancialItem['id']);
-        $financialItemDAO = CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
-      }
-      // create a new financial item recording the pending refund amount
-      elseif ($balanceAmount < 0) {
-        unset($previousFinancialItem['id']);
-        unset($previousFinancialItem['created_date']);
-        $previousFinancialItem['transaction_date'] = date('YmdHis');
-        $previousFinancialItem['description'] = $lineItem['label'];
-        $previousFinancialItem['amount'] = $balanceAmount;
-        $previousFinancialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid');
-        if ($recordChangedAttributes['financialTypeChanged']) {
-          $previousFinancialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
-            $lineItem['financial_type_id'],
-            'Accounts Receivable Account is'
-          );
-        }
-        $financialItemDAO = CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
+      unset($previousFinancialItem['id']);
+      unset($previousFinancialItem['created_date']);
+      $previousFinancialItem['transaction_date'] = date('YmdHis');
+      $previousFinancialItem['description'] = $lineItem['label'];
+      $previousFinancialItem['amount'] = $balanceAmount;
+      $previousFinancialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid');
+      if ($recordChangedAttributes['financialTypeChanged']) {
+        $previousFinancialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
+          $lineItem['financial_type_id'],
+          'Accounts Receivable Account is'
+        );
       }
 
+      $financialItemDAO = CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
       $lineItem['financial_item_id'] = $financialItemDAO->id;
       self::createDeferredTrxn($lineItem['contribution_id'], $lineItem);
+    }
+    // if only financial type is changed
+    elseif ($recordChangedAttributes['financialTypeChanged']) {
+      $params = array(
+        'entity_id' => $lineItemID,
+        'entity_table' => 'civicrm_line_item',
+        'amount' => $lineItem['line_total'],
+      );
+      $salesTaxFinancialAccounts = civicrm_api3('FinancialAccount', 'get', array('is_tax' => 1));
+      if ($salesTaxFinancialAccounts['count']) {
+        $params['financial_account_id'] = array('NOT IN' => array_keys($salesTaxFinancialAccounts['values']));
+      }
+      $previousFinancialItems = CRM_Utils_Array::value('values', civicrm_api3('FinancialItem', 'get', $params));
+      foreach ($previousFinancialItems as $previousFinancialItem) {
+        // reverse financial trxn
+        $financialTrxn = self::getRelatedCancelFinancialTrxn($previousFinancialItem['id']);
+        $trxn = CRM_Core_BAO_FinancialTrxn::create($financialTrxn, array('entity_table' => $financialTrxn['entity_table'], 'entity_id' => $financialTrxn['entity_id']));
+        $tempTrxnID = array('id' => $trxn->id);
+
+        // reverse financial item
+        unset($previousFinancialItem['id']);
+        $previousFinancialItem['transaction_date'] = date('YmdHis');
+        $previousFinancialItem['amount'] = -$lineItem['line_total'];
+        CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $tempTrxnID);
+
+        // create new financial trxn
+        $financialTrxn['total_amount'] = $financialTrxn['net_amount'] = $lineItem['line_total'];
+        $financialTrxn['to_financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], 'Income Account is');
+        $trxn = CRM_Core_BAO_FinancialTrxn::create($financialTrxn, array('entity_table' => $financialTrxn['entity_table'], 'entity_id' => $financialTrxn['entity_id']));
+        $tempTrxnID = array('id' => $trxn->id);
+
+        // create new financial item
+        $previousFinancialItem['amount'] = $lineItem['line_total'];
+        $financialTrxn['to_financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], 'Accounts Receivable Account is');
+        CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $tempTrxnID);
+      }
     }
 
     // create financial item to record changed tax amount on edit
@@ -412,24 +430,31 @@ WHERE fi.entity_id = {$lineItemID}
     }
   }
 
-  public static function cancelPreviousFinancialTrxn($financialItemID) {
-    $sql = "SELECT ft.* FROM civicrm_financial_trxn ft
-      INNER JOIN civicrm_entity_financial_trxn eft ON eft.financial_trxn_id = ft.id
-      WHERE eft.entity_id = {$financialItemID} AND
-       eft.entity_table = 'civicrm_financial_item' AND
-       ft.is_payment = 0 AND
-       ft.from_financial_account_id IS NULL
-    ";
-    $dao = CRM_Core_DAO::executeQuery($sql);
-    while ($dao->fetch()) {
-      $financialTrxn = $dao->toArray();
-      if ($financialTrxn['total_amount'] > 0) {
-        $financialTrxn['total_amount'] = $financialTrxn['net_amount'] = -$financialTrxn['total_amount'];
-        $financialTrxn['is_payment'] = 1;
-        civicrm_api3('FinancialTrxn', 'create', $financialTrxn);
-      }
-    }
-  }
+  public static function getRelatedCancelFinancialTrxn($financialItemID) {
+       $query = "SELECT ft.*
+   FROM civicrm_financial_trxn ft
+   INNER JOIN civicrm_entity_financial_trxn eft ON eft.financial_trxn_id = ft.id AND eft.entity_table = 'civicrm_financial_item'
+   WHERE eft.entity_id = %1
+   ORDER BY eft.id DESC
+   LIMIT 1; ";
+
+       $dao = CRM_Core_DAO::executeQuery($query, array(1 => array($financialItemID, 'Integer')));
+       $financialTrxn = array();
+       while ($dao->fetch()) {
+         $financialTrxn = $dao->toArray();
+         unset($financialTrxn['id']);
+         $financialTrxn = array_merge($financialTrxn, array(
+           'trxn_date' => date('YmdHis'),
+           'total_amount' => -$financialTrxn['total_amount'],
+           'net_amount' => -$financialTrxn['net_amount'],
+           'entity_table' => 'civicrm_financial_item',
+           'entity_id' => $financialItemID,
+         ));
+       }
+
+       return $financialTrxn;
+     }
+
   /**
    * Function used fetch the latest Sale tax related financial item
    *
@@ -658,6 +683,7 @@ ORDER BY  ps.id, pf.weight ;
       );
       $adjustedTrxn = CRM_Core_BAO_FinancialTrxn::create($adjustedTrxnValues);
     }
+
     return $adjustedTrxn;
   }
 
