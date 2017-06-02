@@ -626,12 +626,7 @@ ORDER BY  ps.id, pf.weight ;
     if ($previousTaxAmount) {
       $updatedAmount -= $previousTaxAmount;
     }
-    $balanceAmt = $updatedAmount - $paidAmount;
-    if ($paidAmount != $pendingAmount) {
-      if ($updatedAmount < $paidAmount) {
-        $balanceAmt -= $pendingAmount;
-      }
-    }
+    $balanceAmt = $updatedAmount - $paidAmount - $pendingAmount;
 
     $contributionStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
     $partiallyPaidStatusId = array_search('Partially paid', $contributionStatuses);
