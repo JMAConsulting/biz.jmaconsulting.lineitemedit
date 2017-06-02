@@ -626,17 +626,15 @@ ORDER BY  ps.id, pf.weight ;
     $updatedContributionDAO = new CRM_Contribute_BAO_Contribution();
     $adjustedTrxn = $skip = FALSE;
     if ($balanceAmt) {
-      if ($balanceAmt > 0 && $paidAmount != 0) {
+      if ($updatedAmount > $paidAmount) {
         $contributionStatusVal = $partiallyPaidStatusId;
       }
-      elseif ($balanceAmt < 0 && $paidAmount != 0) {
+      elseif ($balanceAmt < $paidAmount) {
         $contributionStatusVal = $pendingRefundStatusId;
       }
-      elseif ($paidAmount == 0) {
+      elseif ($balanceAmt = $paidAmount) {
         //skip updating the contribution status if no payment is made
         $skip = TRUE;
-        $updatedContributionDAO->cancel_date = 'null';
-        $updatedContributionDAO->cancel_reason = NULL;
       }
       // update contribution status and total amount without trigger financial code
       // as this is handled in current BAO function used for change selection
@@ -644,29 +642,33 @@ ORDER BY  ps.id, pf.weight ;
       if (!$skip) {
         $updatedContributionDAO->contribution_status_id = $contributionStatusVal;
       }
-      $updatedContributionDAO->total_amount = $updatedContributionDAO->net_amount = $updatedAmount;
-      $updatedContributionDAO->fee_amount = 0;
+      $updatedContribution = civicrm_api3(
+        'Contribution',
+        'getsingle',
+        array(
+          'id' => $contributionId,
+          'return' => array('fee_amount'),
+        )
+      );
+      $updatedContributionDAO->total_amount = $updatedAmount;
+      $updatedContributionDAO->net_amount = $updatedAmount - CRM_Utils_Array::value('fee_amount', $updatedContribution, 0);
       if ($taxAmount) {
         $updatedContributionDAO->tax_amount = $taxAmount;
       }
       $updatedContributionDAO->save();
       // adjusted amount financial_trxn creation
-      $updatedContribution = CRM_Contribute_BAO_Contribution::getValues(
-        array('id' => $contributionId),
-        CRM_Core_DAO::$_nullArray,
-        CRM_Core_DAO::$_nullArray
-      );
-      $toFinancialAccount = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($updatedContribution->financial_type_id, 'Accounts Receivable Account is');
+      $updatedContribution = civicrm_api3('Contribution', 'getsingle', array('id' =>$contributionId));
+      $toFinancialAccount = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($updatedContribution['financial_type_id'], 'Accounts Receivable Account is');
       $adjustedTrxnValues = array(
         'from_financial_account_id' => NULL,
         'to_financial_account_id' => $toFinancialAccount,
         'total_amount' => $balanceAmt,
         'net_amount' => $balanceAmt,
-        'status_id' => $updatedContribution->contribution_status_id,
-        'payment_instrument_id' => $updatedContribution->payment_instrument_id,
-        'contribution_id' => $updatedContribution->id,
+        'status_id' => $updatedContribution['contribution_status_id'],
+        'payment_instrument_id' => $updatedContribution['payment_instrument_id'],
+        'contribution_id' => $contributionId,
         'trxn_date' => date('YmdHis'),
-        'currency' => $updatedContribution->currency,
+        'currency' => $updatedContribution['currency'],
       );
       $adjustedTrxn = CRM_Core_BAO_FinancialTrxn::create($adjustedTrxnValues);
     }
