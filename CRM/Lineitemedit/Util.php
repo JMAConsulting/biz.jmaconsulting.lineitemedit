@@ -209,11 +209,10 @@ WHERE fi.entity_id = {$lineItemID}
    * Function used to enter financial records upon addition of lineItem
    *
    * @param int $lineItemID
-   * @param money $taxAmount
    * @param CRM_Financial_DAO_FinancialTrxn $trxn
    *
    */
-  public static function insertFinancialItemOnAdd($lineItem, $taxAmount, $trxn) {
+  public static function insertFinancialItemOnAdd($lineItem, $trxn) {
     $contribution = civicrm_api3('Contribution', 'getsingle', array('id' => $lineItem['contribution_id']));
 
     $revenueFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
@@ -228,20 +227,10 @@ WHERE fi.entity_id = {$lineItemID}
       );
     }
 
-    // check if the financial type of related contribution and new line item is different,
-    //  if yes then update the financial_trxn.to_financial_account_id, identified by $trxn->id
-    if ($contribution['financial_type_id'] != $lineItem['financial_type_id']) {
-      CRM_Core_DAO::setFieldValue('CRM_Financial_DAO_FinancialTrxn',
-        $trxn->id,
-        'to_financial_account_id',
-        $revenueFinancialAccountID
-      );
-    }
-
     $newFinancialItem = array(
       'transaction_date' => date('YmdHis'),
       'contact_id' => $contribution['contact_id'],
-      'description' => $lineItem['label'],
+      'description' => ($lineItem['qty'] != 1 ? $lineItem['qty'] . ' of ' : '') . $lineItem['label'],
       'amount' => $lineItem['line_total'],
       'currency' => $contribution['currency'],
       'financial_account_id' => $revenueFinancialAccountID,
@@ -253,10 +242,11 @@ WHERE fi.entity_id = {$lineItemID}
 
     // create financial item for added line item
     $newFinancialItemDAO = CRM_Financial_BAO_FinancialItem::create($newFinancialItem, NULL, $trxnId);
-    if (!empty($taxAmount) && is_numeric($taxAmount) && $taxAmount != 0) {
+ 
+      if (!empty($lineItem['tax_amount']) && $lineItem['tax_amount'] != 0) {
       $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
       $taxFinancialItemInfo = array_merge($newFinancialItem, array(
-        'amount' => $taxAmount,
+        'amount' => $lineItem['tax_amount'],
         'description' => $taxTerm,
         'financial_account_id' => CRM_Contribute_BAO_Contribution::getFinancialAccountId($lineItem['financial_type_id']),
       ));
@@ -656,7 +646,9 @@ ORDER BY  ps.id, pf.weight ;
       }
       $updatedContributionDAO->total_amount = $updatedContributionDAO->net_amount = $updatedAmount;
       $updatedContributionDAO->fee_amount = 0;
-      $updatedContributionDAO->tax_amount = $taxAmount;
+      if ($taxAmount) {
+        $updatedContributionDAO->tax_amount = $taxAmount;
+      }
       $updatedContributionDAO->save();
       // adjusted amount financial_trxn creation
       $updatedContribution = CRM_Contribute_BAO_Contribution::getValues(

@@ -148,6 +148,7 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
       'contribution_id' => $this->_contributionID,
       'price_field_value_id' => $values['price_field_value_id'],
     ));
+
     if (!empty($previousLineItem['id'])) {
       $newLineItemParams['id'] = $previousLineItem['id'];
       if ($entityTable == 'civicrm_participant') {
@@ -155,15 +156,11 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
       }
     }
 
-    if (!empty($values['tax_amount']) && $values['tax_amount'] != 0) {
-      $newLineItemParams['tax_amount'] = $values['tax_amount'];
-    }
-
     $newLineItem = civicrm_api3('LineItem', 'create', $newLineItemParams);
 
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_contributionID);
-    $taxAmount = empty($newLineItemParams['tax_amount']) ? 'NULL' : $newLineItemParams['tax_amount'];
+    $taxAmount = CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($this->_contributionID);
     $paidAmount = CRM_Utils_Array::value(
       'paid',
       CRM_Contribute_BAO_Contribution::getPaymentInfo(
@@ -185,7 +182,7 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
 
     // record financial item on addition of lineitem
     if ($trxn) {
-      CRM_Lineitemedit_Util::insertFinancialItemOnAdd($newLineItem['values'][$newLineItem['id']], $taxAmount, $trxn);
+      CRM_Lineitemedit_Util::insertFinancialItemOnAdd($newLineItem['values'][$newLineItem['id']], $trxn);
     }
     CRM_Core_Session::singleton()->pushUserContext(CRM_Utils_System::url(CRM_Utils_System::currentPath()));
   }
