@@ -134,8 +134,8 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
       'price_field_id' => CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $values['price_field_value_id'], 'price_field_id'),
       'label' => $values['label'],
       'qty' => $values['qty'],
-      'unit_price' => $values['unit_price'],
-      'line_total' => $values['line_total'],
+      'unit_price' => CRM_Utils_Rule::cleanMoney($values['unit_price']),
+      'line_total' => CRM_Utils_Rule::cleanMoney($values['line_total']),
       'price_field_value_id' => $values['price_field_value_id'],
       'financial_type_id' => $values['financial_type_id'],
     );
