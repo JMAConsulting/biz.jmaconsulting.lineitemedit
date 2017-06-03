@@ -132,27 +132,25 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
 
   public function postProcess() {
     $values = $this->exportValues();
-
+    $values['line_total'] = CRM_Utils_Rule::cleanMoney($values['line_total']);
     $recordChangedAttributes = array(
       'financialTypeChanged' => ($values['financial_type_id'] != $this->_values['financial_type_id']),
       'amountChanged' => ($values['line_total'] != $this->_values['line_total']),
     );
 
-    if (!empty($values['tax_amount']) && $values['tax_amount'] != 0) {
-      $recordChangedAttributes['taxAmountChanged'] = ($values['tax_amount'] != $this->_values['tax_amount']);
-    }
 
     $balanceAmount = ($values['line_total'] - $this->_lineitemInfo['line_total']);
 
-    civicrm_api3('LineItem', 'create', array(
+    $lineItem = civicrm_api3('LineItem', 'create', array(
       'id' => $this->_id,
       'financial_type_id' => $values['financial_type_id'],
       'label' => $values['label'],
       'qty' => $values['qty'],
-      'unit_price' => $values['unit_price'],
+      'unit_price' => CRM_Utils_Rule::cleanMoney($values['unit_price']),
       'line_total' => $values['line_total'],
-      'tax_amount' => CRM_Utils_Array::value('tax_amount', $values, NULL),
     ));
+    $values['tax_amount'] = CRM_Utils_Array::value('tax_amount', $lineItem['values'][$lineItem['id']], 0);
+    $recordChangedAttributes['taxAmountChanged'] = ($values['tax_amount'] != CRM_Utils_Array::value('tax_amount', $this->_lineitemInfo, 0));
 
     if ($this->_lineitemInfo['entity_table'] == 'civicrm_membership') {
       $memberNumTerms = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $this->_lineitemInfo['price_field_value_id'], 'membership_num_terms');
@@ -164,41 +162,27 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       ));
     }
 
+    //TODO:: return if no financial changes
+
+
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_lineitemInfo['contribution_id']);
     $taxAmount = CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($this->_lineitemInfo['contribution_id']);
-    $balanceTaxAmount = NULL;
-    if (!empty($values['tax_amount']) && $values['tax_amount'] != 0) {
-      $balanceTaxAmount = ($values['tax_amount'] - CRM_Utils_Array::value('tax_amount', $this->_lineitemInfo, 0));
-    }
-    $paidAmount = CRM_Utils_Array::value(
-      'paid',
-      CRM_Contribute_BAO_Contribution::getPaymentInfo(
-        $this->_lineitemInfo['contribution_id'],
-        'contribution',
-        FALSE,
-        TRUE
-      )
-    );
-
-    $previousFinancialItem = CRM_Financial_BAO_FinancialItem::getPreviousFinancialItem($this->_id);
-
+    $balanceTaxAmount = ($values['tax_amount'] - CRM_Utils_Array::value('tax_amount', $this->_lineitemInfo, 0));
     // Record adjusted amount by updating contribution info and create necessary financial trxns
-    $trxn = CRM_Lineitemedit_Util::recordAdjustedAmt(
+    CRM_Lineitemedit_Util::recordAdjustedAmt(
       $updatedAmount,
-      $paidAmount,
       $this->_lineitemInfo['contribution_id'],
       $taxAmount,
-      NULL
+      FALSE
     );
 
     // Record financial item on edit of lineitem
     CRM_Lineitemedit_Util::insertFinancialItemOnEdit(
       $this->_id,
-      CRM_Utils_Array::value('tax_amount', $values),
-      $trxn,
       $recordChangedAttributes,
       $balanceAmount,
+      CRM_Utils_Array::value('tax_amount', $values),
       $balanceTaxAmount
     );
 

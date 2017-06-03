@@ -161,23 +161,12 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_contributionID);
     $taxAmount = CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($this->_contributionID);
-    $paidAmount = CRM_Utils_Array::value(
-      'paid',
-      CRM_Contribute_BAO_Contribution::getPaymentInfo(
-        $this->_contributionID,
-        'contribution',
-        FALSE,
-        TRUE
-      )
-    );
-
+   
     // Record adjusted amount by updating contribution info and create necessary financial trxns
     $trxn = CRM_Lineitemedit_Util::recordAdjustedAmt(
       $updatedAmount,
-      $paidAmount,
       $this->_contributionID,
-      $taxAmount,
-      NULL
+      $taxAmount
     );
 
     // record financial item on addition of lineitem

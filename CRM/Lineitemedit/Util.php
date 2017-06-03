@@ -238,7 +238,7 @@ WHERE fi.entity_id = {$lineItemID}
       'entity_table' => 'civicrm_line_item',
       'entity_id' => $lineItem['id'],
     );
-    $trxnId = array('id' => $trxn->id);
+    $trxnId = array('id' => $trxn);
 
     // create financial item for added line item
     $newFinancialItemDAO = CRM_Financial_BAO_FinancialItem::create($newFinancialItem, NULL, $trxnId);
@@ -316,19 +316,19 @@ WHERE fi.entity_id = {$lineItemID}
    * Function used to enter/update financial records upon edit of lineItem
    *
    * @param int $lineItemID
-   * @param money $taxAmount
-   * @param CRM_Financial_DAO_FinancialTrxn $trxn
+   * @param int $trxnId
    * @param int $recordChangedAttributes
    * @param money $balanceAmount
+   * @param money $taxAmount
    * @param money $balanceTaxAmount
    *
    */
   public static function insertFinancialItemOnEdit($lineItemID,
-    $taxAmount,
-    $trxn,
     $recordChangedAttributes,
     $balanceAmount,
-    $balanceTaxAmount
+    $taxAmount,
+    $balanceTaxAmount,
+    $previousLineItem                                               
   ) {
 
     $lineItem = civicrm_api3('LineItem', 'Getsingle', array(
@@ -336,87 +336,34 @@ WHERE fi.entity_id = {$lineItemID}
     ));
 
     $previousFinancialItem = CRM_Financial_BAO_FinancialItem::getPreviousFinancialItem($lineItemID);
-
-    $trxnId = array('id' => $trxn->id);
-    if ($recordChangedAttributes['amountChanged']) {
-      $financialItemDAO = NULL;
-      unset($previousFinancialItem['id']);
-      unset($previousFinancialItem['created_date']);
-      $previousFinancialItem['transaction_date'] = date('YmdHis');
-      $previousFinancialItem['description'] = $lineItem['label'];
-      $previousFinancialItem['amount'] = $balanceAmount;
-      $previousFinancialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid');
-      if ($recordChangedAttributes['financialTypeChanged']) {
-        $previousFinancialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
-          $lineItem['financial_type_id'],
-          'Accounts Receivable Account is'
-        );
-      }
-
-      $financialItemDAO = CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $trxnId);
-      $lineItem['financial_item_id'] = $financialItemDAO->id;
-      self::createDeferredTrxn($lineItem['contribution_id'], $lineItem);
-    }
-    // if only financial type is changed
-    elseif ($recordChangedAttributes['financialTypeChanged']) {
-      $params = array(
-        'entity_id' => $lineItemID,
-        'entity_table' => 'civicrm_line_item',
-        'amount' => $lineItem['line_total'],
+    $financialItem = array(
+      'transaction_date' => date('YmdHis'),
+      'contact_id' => $previousFinancialItem['contact_id'],
+      'description' => $previousFinancialItem['description'],
+      'currency' => $previousFinancialItem['currency'],
+      'entity_id' => $lineItemID,
+      'entity_table' => 'civicrm_line_item',
+    );
+    if ($recordChangedAttributes['financialTypeChanged']) {
+      self::recordChangeInFT(
+        $previousLineItem,
+        $financialItem,
+        $balanceAmount,
+        $balanceTaxAmount,
+        $recordChangedAttributes['taxAmountChanged']
       );
-      $salesTaxFinancialAccounts = civicrm_api3('FinancialAccount', 'get', array('is_tax' => 1));
-      if ($salesTaxFinancialAccounts['count']) {
-        $params['financial_account_id'] = array('NOT IN' => array_keys($salesTaxFinancialAccounts['values']));
-      }
-      $previousFinancialItems = CRM_Utils_Array::value('values', civicrm_api3('FinancialItem', 'get', $params));
-      foreach ($previousFinancialItems as $previousFinancialItem) {
-        // reverse financial trxn
-        $financialTrxn = self::getRelatedCancelFinancialTrxn($previousFinancialItem['id']);
-        $trxn = CRM_Core_BAO_FinancialTrxn::create($financialTrxn, array('entity_table' => $financialTrxn['entity_table'], 'entity_id' => $financialTrxn['entity_id']));
-        $tempTrxnID = array('id' => $trxn->id);
-
-        // reverse financial item
-        unset($previousFinancialItem['id']);
-        $previousFinancialItem['transaction_date'] = date('YmdHis');
-        $previousFinancialItem['amount'] = -$lineItem['line_total'];
-        CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $tempTrxnID);
-
-        // create new financial trxn
-        $financialTrxn['total_amount'] = $financialTrxn['net_amount'] = $lineItem['line_total'];
-        $financialTrxn['to_financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], 'Income Account is');
-        $trxn = CRM_Core_BAO_FinancialTrxn::create($financialTrxn, array('entity_table' => $financialTrxn['entity_table'], 'entity_id' => $financialTrxn['entity_id']));
-        $tempTrxnID = array('id' => $trxn->id);
-
-        // create new financial item
-        $previousFinancialItem['amount'] = $lineItem['line_total'];
-        $financialTrxn['to_financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], 'Accounts Receivable Account is');
-        CRM_Financial_BAO_FinancialItem::create($previousFinancialItem, NULL, $tempTrxnID);
-      }
     }
-
-    // create financial item to record changed tax amount on edit
-    if (!empty($recordChangedAttributes['taxAmountChanged'])) {
-      $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
-      // insert new financial item related to sale tax
-      $taxFinancialItemInfo = array_merge($previousFinancialItem, array(
-        'amount' => $taxAmount,
-        'description' => $taxTerm,
-        'financial_account_id' => CRM_Contribute_BAO_Contribution::getFinancialAccountId($lineItem['financial_type_id']),
-        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid'),
-      ));
-      unset($taxFinancialItemInfo['id']);
-
-      // update the financial item related to Sale tax if any
-      $previousTaxableFinancialItem = self::getPreviousTaxableFinancialItem($lineItemID);
-      if (!empty($previousTaxableFinancialItem['id'])) {
-        $taxFinancialItemInfo = $previousTaxableFinancialItem['values'][$previousTaxableFinancialItem['id']];
-        $taxFinancialItemInfo['amount'] = $taxAmount;
-        if ($taxFinancialItemInfo['status_id'] == 1) {
-          $taxFinancialItemInfo['status_id'] = 2;
-        }
-      }
-      // w/o id the sale tax related financial item is updated or inserted respectively
-      CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
+    
+    // if amount is changed
+    if ($recordChangedAttributes['amountChanged']) {
+      $financialItem['description'] = ($lineItem['qty'] != 1 ? $lineItem['qty'] . ' of ' : '') . $lineItem['label'];
+      self::recordChangeInAmount(
+        $lineItem['contribution_id'],
+        $financialItem,
+        $balanceAmount,
+        $balanceTaxAmount,
+        $recordChangedAttributes['taxAmountChanged']
+      );
     }
   }
 
@@ -608,14 +555,20 @@ ORDER BY  ps.id, pf.weight ;
    *
    * @return bool|\CRM_Core_BAO_FinancialTrxn
    */
-  public static function recordAdjustedAmt($updatedAmount, $paidAmount, $contributionId, $taxAmount = NULL, $previousTaxAmount = NULL) {
+  public static function recordAdjustedAmt($updatedAmount, $contributionId, $taxAmount = NULL, $createTrxn = TRUE) {
     $pendingAmount = CRM_Core_BAO_FinancialTrxn::getBalanceTrxnAmt($contributionId);
     $pendingAmount = CRM_Utils_Array::value('total_amount', $pendingAmount, 0);
 
-    // deduct the taxamount from contribution total on cancelling a taxable line item
-    if ($previousTaxAmount) {
-      $updatedAmount -= $previousTaxAmount;
-    }
+    $paidAmount = CRM_Utils_Array::value(
+      'paid',
+      CRM_Contribute_BAO_Contribution::getPaymentInfo(
+        $contributionId,
+        'contribution',
+        FALSE,
+        TRUE
+      )
+    );
+
     $balanceAmt = $updatedAmount - $paidAmount - $pendingAmount;
 
     $contributionStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
@@ -656,21 +609,10 @@ ORDER BY  ps.id, pf.weight ;
         $updatedContributionDAO->tax_amount = $taxAmount;
       }
       $updatedContributionDAO->save();
-      // adjusted amount financial_trxn creation
-      $updatedContribution = civicrm_api3('Contribution', 'getsingle', array('id' =>$contributionId));
-      $toFinancialAccount = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($updatedContribution['financial_type_id'], 'Accounts Receivable Account is');
-      $adjustedTrxnValues = array(
-        'from_financial_account_id' => NULL,
-        'to_financial_account_id' => $toFinancialAccount,
-        'total_amount' => $balanceAmt,
-        'net_amount' => $balanceAmt,
-        'status_id' => $updatedContribution['contribution_status_id'],
-        'payment_instrument_id' => $updatedContribution['payment_instrument_id'],
-        'contribution_id' => $contributionId,
-        'trxn_date' => date('YmdHis'),
-        'currency' => $updatedContribution['currency'],
-      );
-      $adjustedTrxn = CRM_Core_BAO_FinancialTrxn::create($adjustedTrxnValues);
+      if (!$createTrxn) {
+        return NULL;
+      }
+      $adjustedTrxn = self::createFinancialTrxnEntry($contributionId, $balanceAmt);
     }
 
     return $adjustedTrxn;
@@ -798,6 +740,82 @@ ORDER BY  ps.id, pf.weight ;
      }
 
      return array($entityTable, $entityID);
+  }
+
+  public static function recordChangeInAmount(
+    $contributionId,
+    $financialItem,
+    $balanceAmount,
+    $balanceTaxAmount,
+    $taxAmountChanged
+  ) {
+
+    $trxnId = self::createFinancialTrxnEntry($contributionId, $balanceAmount + $balanceTaxAmount);
+    $trxnId = array('id' => $trxnId);
+    $contribution = civicrm_api3(
+      'Contribution',
+      'getsingle',
+      array(
+        'id' => $contributionId,
+        'return' => array('revenue_recognition_date'),
+      )
+    );
+    $lineItem = civicrm_api3(
+      'lineItem',
+      'getsingle',
+      array(
+        'id' => $financialItem['entity_id'],
+        'return' => array('financial_type_id'),
+      )
+    );
+    $financialItem['amount'] = $balanceAmount;
+    $financialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid');
+    $accountRelName = 'Income Account is';
+    if (CRM_Utils_Array::value('revenue_recognition_date', $contribution) &&
+      strtotime($contribution['revenue_recognition_date']) > strtotime(date('Ymt'))
+    ) {
+      $accountRelName = 'Deferred Revenue Account is';
+    }
+    $financialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], $accountRelName);
+    CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
+    
+    if ($taxAmountChanged) {
+      $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
+      $taxFinancialItemInfo = array_merge($financialItem, array(
+        'amount' => $balanceTaxAmount,
+        'description' => $taxTerm,
+        'financial_account_id' => CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], 'Sales Tax Account is'),
+      ));
+      // create financial item for tax amount related to added line item
+      CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
+    }
+  }
+
+  public static function recordChangeInFT(
+    $lineItem,
+    $financialItem
+  ) {
+    
+  }
+
+  public static function createFinancialTrxnEntry($contributionId, $amount, $toFinancialAccount = NULL) {
+    $contribution = civicrm_api3('Contribution', 'getsingle', array('id' => $contributionId));
+    if (!$toFinancialAccount) {
+      $toFinancialAccount = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($contribution['financial_type_id'], 'Accounts Receivable Account is');
+    }
+    $adjustedTrxnValues = array(
+      'from_financial_account_id' => NULL,
+      'to_financial_account_id' => $toFinancialAccount,
+      'total_amount' => $amount,
+      'net_amount' => $amount,
+      'status_id' => $contribution['contribution_status_id'],
+      'payment_instrument_id' => $contribution['payment_instrument_id'],
+      'contribution_id' => $contributionId,
+      'trxn_date' => date('YmdHis'),
+      'currency' => $contribution['currency'],
+    );
+    $adjustedTrxn = CRM_Core_BAO_FinancialTrxn::create($adjustedTrxnValues);
+    return $adjustedTrxn->id;
   }
 
 }
