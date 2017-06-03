@@ -341,16 +341,15 @@ WHERE fi.entity_id = {$lineItemID}
       'contact_id' => $previousFinancialItem['contact_id'],
       'description' => $previousFinancialItem['description'],
       'currency' => $previousFinancialItem['currency'],
+      'financial_account_id' => $previousFinancialItem['financial_account_id'],
       'entity_id' => $lineItemID,
       'entity_table' => 'civicrm_line_item',
     );
     if ($recordChangedAttributes['financialTypeChanged']) {
       self::recordChangeInFT(
+        $lineItem,
         $previousLineItem,
-        $financialItem,
-        $balanceAmount,
-        $balanceTaxAmount,
-        $recordChangedAttributes['taxAmountChanged']
+        $financialItem
       );
     }
     
@@ -792,10 +791,62 @@ ORDER BY  ps.id, pf.weight ;
   }
 
   public static function recordChangeInFT(
-    $lineItem,
+    $newLineItem,
+    $prevLineItem,
     $financialItem
   ) {
-    
+    $contributionId = $newLineItem['contribution_id'];
+    $contribution = civicrm_api3(
+      'Contribution',
+      'getsingle',
+      array(
+        'id' => $contributionId,
+        'return' => array('revenue_recognition_date', 'payment_instrument_id'),
+      )
+    );
+
+    $accountRelName = 'Income Account is';
+    if (CRM_Utils_Array::value('revenue_recognition_date', $contribution) &&
+      strtotime($contribution['revenue_recognition_date']) > strtotime(date('Ymt'))
+    ) {
+      $accountRelName = 'Deferred Revenue Account is';
+    }
+
+    $trxnArray[1] = array(
+      'ft_amount' => -($prevLineItem['line_total'] + $prevLineItem['tax_amount']),
+      'fi_amount' => -$prevLineItem['line_total'],
+      'tax_amount' => -$prevLineItem['tax_amount'],
+      'tax_ft' => $prevLineItem['financial_type_id'],
+    );
+    $trxnArray[2] = array(
+      'ft_amount' => ($newLineItem['line_total'] + $newLineItem['tax_amount']),
+      'fi_amount' => $newLineItem['line_total'],
+      'tax_amount' => $newLineItem['tax_amount'],
+      'tax_ft' => $newLineItem['financial_type_id'],
+    );
+    $trxnArray[2]['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($newLineItem['financial_type_id'], $accountRelName);
+
+    $trxnArray[1]['to_financial_account_id'] = $trxnArray[2]['to_financial_account_id'] = CRM_Financial_BAO_FinancialTypeAccount::getInstrumentFinancialAccount($contribution['payment_instrument_id']);
+
+    foreach ($trxnArray as $values) {
+      $trxnId = self::createFinancialTrxnEntry($contributionId, $values['ft_amount'], $values['to_financial_account_id']);
+      if (!empty($values['financial_account_id'])) {
+        $financialItem['financial_account_id'] = $values['financial_account_id'];
+      }
+      $financialItem['amount'] = $values['fi_amount'];
+      $trxnId = array('id' => $trxnId);
+      CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
+      if ($values['tax_amount'] != 0) {
+        $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
+        $taxFinancialItemInfo = array_merge($financialItem, array(
+          'amount' => $values['tax_amount'],
+          'description' => $taxTerm,
+          'financial_account_id' => CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($values['tax_ft'], 'Sales Tax Account is'),
+        ));
+        // create financial item for tax amount related to added line item
+        CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
+      }
+    }
   }
 
   public static function createFinancialTrxnEntry($contributionId, $amount, $toFinancialAccount = NULL) {

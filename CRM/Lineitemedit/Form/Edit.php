@@ -183,7 +183,8 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       $recordChangedAttributes,
       $balanceAmount,
       CRM_Utils_Array::value('tax_amount', $values),
-      $balanceTaxAmount
+      $balanceTaxAmount,
+      $this->_lineitemInfo
     );
 
     parent::postProcess();
