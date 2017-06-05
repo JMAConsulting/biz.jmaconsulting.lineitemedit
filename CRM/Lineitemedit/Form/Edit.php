@@ -133,11 +133,6 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
   public function postProcess() {
     $values = $this->exportValues();
     $values['line_total'] = CRM_Utils_Rule::cleanMoney($values['line_total']);
-    $recordChangedAttributes = array(
-      'financialTypeChanged' => ($values['financial_type_id'] != $this->_values['financial_type_id']),
-      'amountChanged' => ($values['line_total'] != $this->_values['line_total']),
-    );
-
 
     $balanceAmount = ($values['line_total'] - $this->_lineitemInfo['line_total']);
 
@@ -149,8 +144,6 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       'unit_price' => CRM_Utils_Rule::cleanMoney($values['unit_price']),
       'line_total' => $values['line_total'],
     ));
-    $values['tax_amount'] = CRM_Utils_Array::value('tax_amount', $lineItem['values'][$lineItem['id']], 0);
-    $recordChangedAttributes['taxAmountChanged'] = ($values['tax_amount'] != CRM_Utils_Array::value('tax_amount', $this->_lineitemInfo, 0));
 
     if ($this->_lineitemInfo['entity_table'] == 'civicrm_membership') {
       $memberNumTerms = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $this->_lineitemInfo['price_field_value_id'], 'membership_num_terms');
@@ -162,13 +155,9 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       ));
     }
 
-    //TODO:: return if no financial changes
-
-
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_lineitemInfo['contribution_id']);
     $taxAmount = CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($this->_lineitemInfo['contribution_id']);
-    $balanceTaxAmount = ($values['tax_amount'] - CRM_Utils_Array::value('tax_amount', $this->_lineitemInfo, 0));
     // Record adjusted amount by updating contribution info and create necessary financial trxns
     CRM_Lineitemedit_Util::recordAdjustedAmt(
       $updatedAmount,
@@ -180,10 +169,6 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     // Record financial item on edit of lineitem
     CRM_Lineitemedit_Util::insertFinancialItemOnEdit(
       $this->_id,
-      $recordChangedAttributes,
-      $balanceAmount,
-      CRM_Utils_Array::value('tax_amount', $values),
-      $balanceTaxAmount,
       $this->_lineitemInfo
     );
 

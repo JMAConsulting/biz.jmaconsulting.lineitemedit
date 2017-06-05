@@ -316,24 +316,24 @@ WHERE fi.entity_id = {$lineItemID}
    * Function used to enter/update financial records upon edit of lineItem
    *
    * @param int $lineItemID
-   * @param int $trxnId
-   * @param int $recordChangedAttributes
-   * @param money $balanceAmount
-   * @param money $taxAmount
    * @param money $balanceTaxAmount
    *
    */
   public static function insertFinancialItemOnEdit($lineItemID,
-    $recordChangedAttributes,
-    $balanceAmount,
-    $taxAmount,
-    $balanceTaxAmount,
     $previousLineItem                                               
   ) {
 
     $lineItem = civicrm_api3('LineItem', 'Getsingle', array(
       'id' => $lineItemID,
     ));
+    $lineItem['tax_amount'] = $taxAmount = CRM_Utils_Array::value('tax_amount', $lineItem, 0);
+    $newLineTotal = $lineItem['line_total'] + $lineItem['tax_amount'];
+    $oldLineTotal = $previousLineItem['line_total'] + CRM_Utils_Array::value('tax_amount', $previousLineItem, 0);
+    $recordChangedAttributes = array(
+      'financialTypeChanged' => ($lineItem['financial_type_id'] != $previousLineItem['financial_type_id']),
+      'amountChanged' => ($newLineTotal != $oldLineTotal),
+      'taxAmountChanged' => ($lineItem['tax_amount'] != CRM_Utils_Array::value('tax_amount', $previousLineItem, 0)),
+    );
 
     $previousFinancialItem = CRM_Financial_BAO_FinancialItem::getPreviousFinancialItem($lineItemID);
     $financialItem = array(
@@ -345,6 +345,9 @@ WHERE fi.entity_id = {$lineItemID}
       'entity_id' => $lineItemID,
       'entity_table' => 'civicrm_line_item',
     );
+
+    $balanceTaxAmount = $lineItem['tax_amount'] - CRM_Utils_Array::value('tax_amount', $previousLineItem, 0);
+    $balanceAmount = $lineItem['line_total'] - $previousLineItem['line_total'];
     if ($recordChangedAttributes['financialTypeChanged']) {
       self::recordChangeInFT(
         $lineItem,
@@ -777,8 +780,7 @@ ORDER BY  ps.id, pf.weight ;
     }
     $financialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], $accountRelName);
     CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
-    
-    if ($taxAmountChanged) {
+    if ($taxAmountChanged && $balanceTaxAmount != 0) {
       $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
       $taxFinancialItemInfo = array_merge($financialItem, array(
         'amount' => $balanceTaxAmount,
@@ -818,10 +820,13 @@ ORDER BY  ps.id, pf.weight ;
       'tax_amount' => -$prevLineItem['tax_amount'],
       'tax_ft' => $prevLineItem['financial_type_id'],
     );
+    $taxRates = CRM_Core_PseudoConstant::getTaxRates();
+    $taxRates = CRM_Utils_Array::value($newLineItem['financial_type_id'], $taxRates, 0);
+    $newtax = CRM_Contribute_BAO_Contribution_Utils::calculateTaxAmount($prevLineItem['line_total'], $taxRates);
     $trxnArray[2] = array(
-      'ft_amount' => ($prevLineItem['line_total'] + $prevLineItem['tax_amount']),
+      'ft_amount' => ($prevLineItem['line_total'] + $newtax['tax_amount']),
       'fi_amount' => $prevLineItem['line_total'],
-      'tax_amount' => $prevLineItem['tax_amount'],
+      'tax_amount' => $newtax['tax_amount'],
       'tax_ft' => $newLineItem['financial_type_id'],
     );
     $trxnArray[2]['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($newLineItem['financial_type_id'], $accountRelName);
