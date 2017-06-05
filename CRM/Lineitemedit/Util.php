@@ -819,15 +819,16 @@ ORDER BY  ps.id, pf.weight ;
       'tax_ft' => $prevLineItem['financial_type_id'],
     );
     $trxnArray[2] = array(
-      'ft_amount' => ($newLineItem['line_total'] + $newLineItem['tax_amount']),
-      'fi_amount' => $newLineItem['line_total'],
-      'tax_amount' => $newLineItem['tax_amount'],
+      'ft_amount' => ($prevLineItem['line_total'] + $prevLineItem['tax_amount']),
+      'fi_amount' => $prevLineItem['line_total'],
+      'tax_amount' => $prevLineItem['tax_amount'],
       'tax_ft' => $newLineItem['financial_type_id'],
     );
     $trxnArray[2]['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($newLineItem['financial_type_id'], $accountRelName);
 
     $trxnArray[1]['to_financial_account_id'] = $trxnArray[2]['to_financial_account_id'] = CRM_Financial_BAO_FinancialTypeAccount::getInstrumentFinancialAccount($contribution['payment_instrument_id']);
 
+    $financialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Paid');
     foreach ($trxnArray as $values) {
       $trxnId = self::createFinancialTrxnEntry($contributionId, $values['ft_amount'], $values['to_financial_account_id']);
       if (!empty($values['financial_account_id'])) {
@@ -851,19 +852,23 @@ ORDER BY  ps.id, pf.weight ;
 
   public static function createFinancialTrxnEntry($contributionId, $amount, $toFinancialAccount = NULL) {
     $contribution = civicrm_api3('Contribution', 'getsingle', array('id' => $contributionId));
+    $isPayment = TRUE;
     if (!$toFinancialAccount) {
       $toFinancialAccount = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($contribution['financial_type_id'], 'Accounts Receivable Account is');
+      $isPayment = FALSE;
     }
     $adjustedTrxnValues = array(
       'from_financial_account_id' => NULL,
       'to_financial_account_id' => $toFinancialAccount,
       'total_amount' => $amount,
       'net_amount' => $amount,
+      // TODO: What should be status incase of FT change?
       'status_id' => $contribution['contribution_status_id'],
       'payment_instrument_id' => $contribution['payment_instrument_id'],
       'contribution_id' => $contributionId,
       'trxn_date' => date('YmdHis'),
       'currency' => $contribution['currency'],
+      'is_payment' => $isPayment,
     );
     $adjustedTrxn = CRM_Core_BAO_FinancialTrxn::create($adjustedTrxnValues);
     return $adjustedTrxn->id;
