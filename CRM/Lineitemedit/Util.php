@@ -242,7 +242,7 @@ WHERE fi.entity_id = {$lineItemID}
 
     // create financial item for added line item
     $newFinancialItemDAO = CRM_Financial_BAO_FinancialItem::create($newFinancialItem, NULL, $trxnId);
- 
+
       if (!empty($lineItem['tax_amount']) && $lineItem['tax_amount'] != 0) {
       $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
       $taxFinancialItemInfo = array_merge($newFinancialItem, array(
@@ -320,7 +320,7 @@ WHERE fi.entity_id = {$lineItemID}
    *
    */
   public static function insertFinancialItemOnEdit($lineItemID,
-    $previousLineItem                                               
+    $previousLineItem
   ) {
 
     $lineItem = civicrm_api3('LineItem', 'Getsingle', array(
@@ -355,7 +355,7 @@ WHERE fi.entity_id = {$lineItemID}
         $financialItem
       );
     }
-    
+
     // if amount is changed
     if ($recordChangedAttributes['amountChanged']) {
       $financialItem['description'] = ($lineItem['qty'] != 1 ? $lineItem['qty'] . ' of ' : '') . $lineItem['label'];
@@ -423,6 +423,14 @@ WHERE fi.entity_id = {$lineItemID}
    *      list of price fields OR count of price fields
    */
   public static function getPriceFieldLists($contributionID, $getCount = FALSE) {
+    // fetch the component that the price-set is used for
+    $usedForComponent = CRM_Core_DAO::singleValueQuery("SELECT ps.extends
+      FROM civicrm_line_item AS li
+      INNER JOIN civicrm_price_field AS pf ON li.price_field_id = pf.id
+      INNER JOIN civicrm_price_set AS ps ON pf.price_set_id = ps.id
+      WHERE li.contribution_id = {$contributionID}"
+    );
+
     $sql = "
 SELECT    pfv.id as pfv_id,
           pfv.label as pfv_label,
@@ -433,7 +441,7 @@ SELECT    pfv.id as pfv_id,
 FROM      civicrm_price_field_value as pfv
 LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
 LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
-WHERE  pfv.id NOT IN (
+WHERE  ps.extends = {$usedForComponent} AND ps.is_quick_config = 0 AND pfv.id NOT IN (
    SELECT li.price_field_value_id
     FROM civicrm_line_item as li
     WHERE li.contribution_id = {$contributionID} AND li.qty != 0
@@ -453,19 +461,11 @@ ORDER BY  ps.id, pf.weight ;
       $excludePriceFields[] = $dao1->id;
     }
 
-    // fetch the price-set that belong to the contribution's line_item's price field
-    $priceSetID = CRM_Core_DAO::singleValueQuery("SELECT ps.id
-      FROM civicrm_line_item AS li
-      INNER JOIN civicrm_price_field AS pf ON li.price_field_id = pf.id
-      INNER JOIN civicrm_price_set AS ps ON pf.price_set_id = ps.id
-      WHERE li.contribution_id = {$contributionID}"
-    );
-
     $priceFields = array();
     while ($dao->fetch()) {
       // exclude price fields which belong to other price-set that the existing contribution
       //  doesn't have any lineitem
-      if (($dao->set_id != $priceSetID) || in_array($dao->pf_id, $excludePriceFields)) {
+      if (in_array($dao->pf_id, $excludePriceFields)) {
         continue;
       }
       $isQuickConfigSpecialChar = ($dao->is_quick == 1) ? '<b>*</b>' : '';
@@ -498,10 +498,10 @@ ORDER BY  ps.id, pf.weight ;
         array_key_exists($priceFieldValueInfo['financial_type_id'], $taxRates)
       ) {
         $taxRate = $taxRates[$priceFieldValueInfo['financial_type_id']];
-        $priceFieldValueInfo['tax_amount'] = CRM_Contribute_BAO_Contribution_Utils::calculateTaxAmount(
+        $priceFieldValueInfo['tax_amount'] = CRM_Utils_Array::value('tax_amount', CRM_Contribute_BAO_Contribution_Utils::calculateTaxAmount(
           $priceFieldValueInfo['amount'],
           $taxRate
-        );
+        ), 0.00);
       }
 
       return CRM_Utils_JSON::output(array(
@@ -510,7 +510,7 @@ ORDER BY  ps.id, pf.weight ;
         'financial_type_id' => $priceFieldValueInfo['financial_type_id'],
         'unit_price' => $priceFieldValueInfo['amount'],
         'line_total' => $priceFieldValueInfo['amount'],
-        'tax_amount' => CRM_Utils_Array::value('tax_amount', $priceFieldValueInfo, 0),
+        'tax_amount' => CRM_Utils_Array::value('tax_amount', $priceFieldValueInfo, 0.00),
       ));
     }
   }

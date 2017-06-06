@@ -50,24 +50,38 @@
         var qty = $('#qty', $form).val();
         var totalAmount = qty * unit_price;
         $('#line_total', $form).val(CRM.formatMoney(totalAmount, true));
+        if ($('#tax_amount').length) {
+          var tax_amount = calculateTaxAmount($('#financial_type_id').val());
+          $('#tax_amount', $form).val(CRM.formatMoney(tax_amount, true));
+        }
       });
       $('#unit_price', $form).change( function() {
         var unit_price = $('#unit_price', $form).val();
         var qty = $('#qty', $form).val();
         var totalAmount = qty * unit_price;
         $('#line_total', $form).val(CRM.formatMoney(totalAmount, true));
-      });
-      $('#financial_type_id', $form).change( function() {
         if ($('#tax_amount').length) {
-          var tax_rates = {/literal}{$taxRates}{literal};
-          var financial_type_id = $(this).val();
-          var tax_amount = 0;
-          if (financial_type_id in tax_rates) {
-            tax_amount = (tax_rates[financial_type_id] / 100 ) * $('#line_total').val();
-          }
+          var tax_amount = calculateTaxAmount($('#financial_type_id').val());
           $('#tax_amount', $form).val(CRM.formatMoney(tax_amount, true));
         }
       });
+      $('#financial_type_id', $form).change( function() {
+        if ($('#tax_amount').length) {
+          var tax_amount = calculateTaxAmount($(this).val());
+          $('#tax_amount', $form).val(CRM.formatMoney(tax_amount, true));
+        }
+      });
+
+      function calculateTaxAmount(financial_type_id) {
+        var tax_amount = 0;
+        if ($('#tax_amount').length) {
+          var tax_rates = {/literal}{$taxRates}{literal};
+          if (financial_type_id in tax_rates) {
+            tax_amount = (tax_rates[financial_type_id] / 100 ) * $('#line_total').val();
+          }
+        }
+        return tax_amount;
+      }
     });
   </script>
 {/literal}
