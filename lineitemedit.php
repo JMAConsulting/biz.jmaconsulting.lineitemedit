@@ -160,6 +160,30 @@ function lineitemedit_civicrm_buildForm($formName, &$form) {
   }
 }
 
+function lineitemedit_civicrm_post($op, $objectName, $objectId, &$objectRef) {
+  // Avoid creating proportional entry in entity financial trxn table
+  //  for contribution related to multiple line item
+  if ($objectName == 'EntityFinancialTrxn' && $op == 'create' && $objectRef->entity_table == 'civicrm_financial_item') {
+    $financialAmount = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialItem', $objectRef->entity_id, 'amount');
+    if ($objecRef->amount < $financialAmount) {
+      $previousEntityTrxn = civicrm_api3($objectName, 'get', array(
+        'id' => array('!=' => $objectId),
+        'entity_table' => 'civicrm_financial_item',
+        'entity_id' => $objectRef->entity_id,
+      ));
+      // if no record found, also means its a first such record, then update with financial item's amount
+      if ($previousEntityTrxn['count'] == 0) {
+        $objecRef->amount = $financialAmount;
+        $objectRef->save();
+      }
+      //delete records
+      elseif ($previousEntityTrxn['count']) {
+        $objectRef->delete();
+      }
+    }
+  }
+}
+
 /**
  * Functions below this ship commented out. Uncomment as required.
  *
