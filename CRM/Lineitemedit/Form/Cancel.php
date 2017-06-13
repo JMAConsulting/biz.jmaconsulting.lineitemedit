@@ -52,9 +52,6 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
   }
 
   public function postProcess() {
-    //TODO: lineItem.Get API doesn't fetch tax amount
-    $previousTaxAmount = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_LineItem', $this->_id, 'tax_amount');
-
     CRM_Lineitemedit_Util::cancelEntity($this->_lineitemInfo['entity_id'], $this->_lineitemInfo['entity_table']);
 
     // change total_price and qty of current line item to 0, on cancel
@@ -67,31 +64,22 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
     ));
 
     // calculate balance, tax and paidamount later used to adjust transaction
-    $updatedAmount = $this->_multipleLineItem ? CRM_Price_BAO_LineItem::getLineTotal($this->_prevContributionID) : 0;
-    $taxAmount = $this->_multipleLineItem ? CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($this->_prevContributionID) : "NULL";
-    $paidAmount = CRM_Utils_Array::value(
-      'paid',
-      CRM_Contribute_BAO_Contribution::getPaymentInfo(
-        $this->_prevContributionID,
-        'contribution',
-        FALSE,
-        TRUE
-      )
-    );
+    $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_prevContributionID);
+    $taxAmount = CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($this->_prevContributionID);
 
     // Record adjusted amount by updating contribution info and create necessary financial trxns
-    $trxn = CRM_Lineitemedit_Util::recordAdjustedAmt(
+    CRM_Lineitemedit_Util::recordAdjustedAmt(
       $updatedAmount,
-      $paidAmount,
       $this->_prevContributionID,
       $taxAmount,
-      $previousTaxAmount
+      FALSE
     );
 
-    // record financial item on cancellation of lineitem
-    if ($trxn) {
-      CRM_Lineitemedit_Util::insertFinancialItemOnCancel($this->_id, $previousTaxAmount, $trxn);
-    }
+    // Record financial item on cancel of lineitem
+    CRM_Lineitemedit_Util::insertFinancialItemOnEdit(
+      $this->_id,
+      $this->_lineitemInfo
+    );
 
     parent::postProcess();
   }

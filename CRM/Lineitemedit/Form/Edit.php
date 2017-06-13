@@ -25,12 +25,12 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
 
     $this->_lineitemInfo = civicrm_api3('lineItem', 'getsingle', array('id' => $this->_id));
     foreach (CRM_Lineitemedit_Util::getLineitemFieldNames() as $attribute) {
-      $this->_values[$attribute] = $this->_lineitemInfo[$attribute];
+      $this->_values[$attribute] = CRM_Utils_Array::value($attribute, $this->_lineitemInfo, 0);
     }
 
     $this->_values['currency'] = CRM_Core_DAO::getFieldValue(
       'CRM_Financial_DAO_Currency',
-      CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $this->_lineitemInfo['entity_id'], 'currency'),
+      CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $this->_lineitemInfo['contribution_id'], 'currency'),
       'symbol',
       'name'
     );

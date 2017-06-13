@@ -157,55 +157,6 @@ class CRM_Lineitemedit_Util {
   }
 
   /**
-   * Function used to enter financial records upon cancellation of lineItem
-   *
-   * @param int $lineItemID
-   * @param money $previousLineItemTaxAmount
-   * @param obj $trxn
-   *
-   */
-  public static function insertFinancialItemOnCancel($lineItemID, $previousLineItemTaxAmount, $trxn) {
-    // gathering necessary info to record negative (deselected) financial_item
-    $getPreviousFinancialItemSQL = "
-SELECT fi.*
-  FROM civicrm_financial_item fi
-    LEFT JOIN civicrm_line_item li ON (li.id = fi.entity_id AND fi.entity_table = 'civicrm_line_item')
-WHERE fi.entity_id = {$lineItemID}
-    ";
-
-    $previousFinancialItemDAO = CRM_Core_DAO::executeQuery($getPreviousFinancialItemSQL);
-    $trxnId = array('id' => $trxn->id);
-    while ($previousFinancialItemDAO->fetch()) {
-      $previousFinancialItemInfoValues = (array) $previousFinancialItemDAO;
-
-      $previousFinancialItemInfoValues['transaction_date'] = date('YmdHis');
-      $previousFinancialItemInfoValues['amount'] = -$previousFinancialItemInfoValues['amount'];
-
-      // the below params are not needed
-      unset($previousFinancialItemInfoValues['id']);
-      unset($previousFinancialItemInfoValues['created_date']);
-
-      // create financial item for deselected or cancelled line item
-      $financialItemDAO = CRM_Financial_BAO_FinancialItem::create($previousFinancialItemInfoValues, NULL, $trxnId);
-
-      // insert financial item related to tax
-      if (!empty($previousLineItemTaxAmount)) {
-        $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
-        $taxFinancialItemInfo = array_merge($previousFinancialItemInfoValues, array(
-          'amount' => -$previousLineItemTaxAmount,
-          'description' => $taxTerm,
-        ));
-        // create financial item for tax amount related to deselected or cancelled line item
-        CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
-      }
-
-      $lineItem = civicrm_api3('LineItem', 'getsingle', array('id' => $lineItemID));
-      $lineItem['financial_item_id'] = $financialItemDAO->id;
-      self::createDeferredTrxn($lineItem['contribution_id'], $lineItem);
-    }
-  }
-
-  /**
    * Function used to enter financial records upon addition of lineItem
    *
    * @param int $lineItemID
@@ -358,7 +309,7 @@ WHERE fi.entity_id = {$lineItemID}
 
     // if amount is changed
     if ($recordChangedAttributes['amountChanged']) {
-      $financialItem['description'] = ($lineItem['qty'] != 1 ? $lineItem['qty'] . ' of ' : '') . $lineItem['label'];
+      $financialItem['description'] = ($lineItem['qty'] > 1 ? $lineItem['qty'] . ' of ' : '') . $lineItem['label'];
       self::recordChangeInAmount(
         $lineItem['contribution_id'],
         $financialItem,
@@ -549,9 +500,7 @@ ORDER BY  ps.id, pf.weight ;
    * Record adjusted amount, copied from CRM_Event_BAO_Participant::recordAdjustedAmt(..) to tackle a core bug
    *
    * @param int $updatedAmount
-   * @param int $paidAmount
    * @param int $contributionId
-   *
    * @param int $taxAmount
    * @param money $previousTaxAmount
    *
@@ -647,7 +596,7 @@ ORDER BY  ps.id, pf.weight ;
   public static function cancelEntity($entityID, $entityTable) {
     switch ($entityTable) {
       case 'civicrm_membership':
-        $cancelStatusID =  array_search('Cancelled', CRM_Member_PseudoConstant::membershipStatus(NULL, " name = 'Cancelled' ", 'name', FALSE, TRUE));
+        $cancelStatusID =  CRM_Core_PseudoConstant::getKey('CRM_Member_BAO_Membership', 'status_id', 'Cancelled');
         civicrm_api3('Membership', 'create', array(
           'id' => $entityID,
           'status_id' => $cancelStatusID,
