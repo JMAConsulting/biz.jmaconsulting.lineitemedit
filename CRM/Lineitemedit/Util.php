@@ -722,8 +722,7 @@ ORDER BY  ps.id, pf.weight ;
     $financialItem['amount'] = $balanceAmount;
     $financialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid');
     $accountRelName = 'Income Account is';
-    if (CRM_Utils_Array::value('revenue_recognition_date', $contribution) &&
-      strtotime($contribution['revenue_recognition_date']) > strtotime(date('Ymt'))
+    if (CRM_Utils_Array::value('revenue_recognition_date', $contribution))
     ) {
       $accountRelName = 'Deferred Revenue Account is';
     }
