@@ -121,10 +121,23 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
   public function postProcess() {
     $values = $this->exportValues();
 
+    // check for any cancelled line item which was recorded for same price field,
+    //  if found then use its ID update it rather then creating a new line item as
+    //  civicrm doesn't allow multiple line item registered against same
+    //  contribution and price field ID
+    $previousLineItem = civicrm_api3('LineItem', 'get', array(
+      'contribution_id' => $this->_contributionID,
+      'price_field_value_id' => $values['price_field_value_id'],
+    ));
+    $entityId = NULL;
+    if (!empty($previousLineItem['values'])) {
+      $entityId = $previousLineItem['values'][$previousLineItem['id']]['entity_id'];
+    }
     list($entityTable, $entityID) = CRM_Lineitemedit_Util::addEntity(
       $values['price_field_value_id'],
       $this->_contributionID,
-      $values['qty']
+      $values['qty'],
+      $entityId
     );
 
     $newLineItemParams = array(
@@ -139,15 +152,6 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
       'price_field_value_id' => $values['price_field_value_id'],
       'financial_type_id' => $values['financial_type_id'],
     );
-
-    // check for any cancelled line item which was recorded for same price field,
-    //  if found then use its ID update it rather then creating a new line item as
-    //  civicrm doesn't allow multiple line item registered against same
-    //  contribution and price field ID
-    $previousLineItem = civicrm_api3('LineItem', 'get', array(
-      'contribution_id' => $this->_contributionID,
-      'price_field_value_id' => $values['price_field_value_id'],
-    ));
 
     if (!empty($previousLineItem['id'])) {
       $newLineItemParams['id'] = $previousLineItem['id'];

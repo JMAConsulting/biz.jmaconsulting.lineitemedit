@@ -624,7 +624,7 @@ ORDER BY  ps.id, pf.weight ;
    *
    * @return array
    */
-  public static function addEntity($priceFieldValueID, $contributionID, $qty) {
+  public static function addEntity($priceFieldValueID, $contributionID, $qty, $entityId) {
     $entityInfo = $eventID = NULL;
     $entityTable = 'civicrm_contribution';
     $entityID = $contributionID;
@@ -658,11 +658,18 @@ ORDER BY  ps.id, pf.weight ;
         $memTypeNumTerms = CRM_Utils_Array::value('m_nt', $entityInfo, 1);
         $memTypeNumTerms = $qty * $memTypeNumTerms;
         // NOTE: membership.create API already calculate membership dates
-        $membership = civicrm_api3('Membership', 'create', array(
+        $params = array(
           'membership_type_id' => $entityInfo['mt_id'],
           'contact_id' => CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $contributionID, 'contact_id'),
           'num_terms' => $memTypeNumTerms,
-        ));
+          'skipLineItem' => TRUE,
+        );
+        if ($entityId) {
+          $params['id'] = $entityId;
+          $params['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Member_BAO_Membership', 'status_id', 'Current');
+          $params['is_override'] = TRUE; 
+        }
+        $membership = civicrm_api3('Membership', 'create', $params);
         $entityID = $membership['id'];
         civicrm_api3('MembershipPayment', 'create', array(
           'membership_id' => $entityID,
@@ -674,14 +681,19 @@ ORDER BY  ps.id, pf.weight ;
         $roleIDs = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $eventID, 'default_role_id');
         $roleIDs = (array) explode(CRM_Core_DAO::VALUE_SEPARATOR, $roleIDs);
         $feeLevel = sprintf("%s - %d", $entityInfo['pfv_label'], (int) $qty);
-        $participant = civicrm_api3('Participant', 'create', array(
+        $params = array(
           'event_id' => $eventID,
           'contact_id' => CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $contributionID, 'contact_id'),
           'role_id' => $roleIDs,
           'fee_amount' => $entityInfo['pfv_amount'],
           'fee_level' => $feeLevel,
           'is_pay_later' => 1,
-        ));
+          'skipLineItem' => TRUE,
+        );
+        if ($entityId) {
+          $params['id'] = $entityId;
+        }
+        $participant = civicrm_api3('Participant', 'create', $params);
         $entityID = $participant['id'];
         civicrm_api3('ParticipantPayment', 'create', array(
           'participant_id' => $entityID,
