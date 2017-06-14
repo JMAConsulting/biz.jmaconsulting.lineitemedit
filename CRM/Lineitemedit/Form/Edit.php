@@ -42,6 +42,10 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     );
 
     $this->_priceFieldInfo = civicrm_api3('PriceField', 'getsingle', array('id' => $this->_lineitemInfo['price_field_id']));
+
+    if ($this->_isQuickConfig || $this->_priceFieldInfo['is_enter_qty'] == 0) {
+      $this->_values['qty'] = (int) $this->_values['qty'];
+    }
   }
 
   /**
