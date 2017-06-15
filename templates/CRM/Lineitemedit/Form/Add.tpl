@@ -1,5 +1,4 @@
 {* HEADER *}
-
 {foreach from=$fieldNames item=fieldName}
 <div class="crm-section">
     <div class="label">{$form.$fieldName.label}</div>

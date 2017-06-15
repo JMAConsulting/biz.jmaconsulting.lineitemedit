@@ -467,9 +467,9 @@ ORDER BY  ps.id, pf.weight ;
         'qty' => 1,
         'label' => $priceFieldValueInfo['label'],
         'financial_type_id' => $priceFieldValueInfo['financial_type_id'],
-        'unit_price' => $priceFieldValueInfo['amount'],
-        'line_total' => $priceFieldValueInfo['amount'],
-        'tax_amount' => CRM_Utils_Array::value('tax_amount', $priceFieldValueInfo, 0.00),
+        'unit_price' => CRM_Utils_Money::format($priceFieldValueInfo['amount'], NULL, NULL, TRUE),
+        'line_total' => CRM_Utils_Money::format($priceFieldValueInfo['amount'], NULL, NULL, TRUE),
+        'tax_amount' => CRM_Utils_Money::format(CRM_Utils_Array::value('tax_amount', $priceFieldValueInfo, 0.00), NULL, NULL, TRUE),
       ));
     }
   }
