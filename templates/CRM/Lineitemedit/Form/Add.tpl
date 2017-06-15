@@ -8,9 +8,6 @@
         {$currency}
       {/if}
       <span>{$form.$fieldName.html}</span>
-      {if $fieldName eq 'price_field_value_id'}
-        <div><span class="description">{ts}The quick-config price field(s) are marked with *{/ts}</span></div>
-      {/if}
     </div>
     <div class="clear"></div>
 </div>

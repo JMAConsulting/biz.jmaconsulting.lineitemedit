@@ -119,12 +119,6 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
   public static function formRule($fields, $files, $self) {
     $errors = array();
 
-    if ($fields['line_total'] == 0) {
-      $errors['line_total'] = ts('Line Total amount should not be empty');
-    }
-    if ($fields['qty'] == 0) {
-      $errors['qty'] = ts('Line quantity cannot be zero');
-    }
     if (!CRM_Utils_Rule::integer($fields['qty'])) {
       if ($self->_isQuickConfig || $self->_priceFieldInfo['is_enter_qty'] == 0) {
         $errors['qty'] = ts('Please enter a whole number quantity');

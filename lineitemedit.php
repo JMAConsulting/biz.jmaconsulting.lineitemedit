@@ -160,7 +160,28 @@ function lineitemedit_civicrm_buildForm($formName, &$form) {
   }
 }
 
-function lineitemedit_civicrm_post($op, $objectName, $objectId, &$objectRef) {
+function lineitemedit_civicrm_postProcess($formName, &$form) {
+  if ($formName == 'CRM_Contribute_Form_Contribution' &&
+    !empty($form->_id) &&
+    ($form->_action & CRM_Core_Action::UPDATE)
+  ) {
+    $lineItems = CRM_Price_BAO_LineItem::getLineItemsByContributionID($form->_id);
+    foreach ($lineItems as $id => $lineItem) {
+      if ($lineItem['qty'] == 0 && $lineItem['line_total'] != 0) {
+        $qtyRatio = ($lineItem['line_total'] / $lineItem['unit_price']);
+        if ($lineItem['html_type'] == 'Text') {
+          $qtyRatio = round($qtyRatio, 2);
+        }
+        else {
+          $qtyRatio = (int) $qtyRatio;
+        }
+        civicrm_api3('LineItem', 'create', array(
+          'id' => $id,
+          'qty' => $qtyRatio ? $qtyRatio : 1,
+        ));
+      }
+    }
+  }
 }
 
 /**

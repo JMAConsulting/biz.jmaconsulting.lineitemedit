@@ -54,6 +54,10 @@ class CRM_Lineitemedit_Util {
         'id' => $lineItem['id'],
       );
 
+      $actionLinks = $links;
+      if ($lineItem['qty'] == 0) {
+        unset($actionLinks[CRM_Core_Action::DELETE]);
+      }
       $lineItemTable['rows'][$key] = array(
         'id' => $lineItem['id'],
         'item' => $lineItem['label'],
@@ -62,7 +66,7 @@ class CRM_Lineitemedit_Util {
         'unit_price' => $lineItem['unit_price'],
         'total_price' => $lineItem['line_total'],
         'currency' => $order['currency'],
-        'actions' => ($lineItem['qty'] != 0) ? CRM_Core_Action::formLink($links, $mask, $actions) : '',
+        'actions' => CRM_Core_Action::formLink($actionLinks, $mask, $actions),
       );
     }
 
@@ -125,15 +129,20 @@ class CRM_Lineitemedit_Util {
         foreach ($records as $lineItemID => $lineItem) {
           // do not show cancel and edit actions on membership OR if the item is already cancelled
           if ($lineItem['qty'] == 0) {
-            continue;
+            $actionlinks = sprintf("
+              <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>",
+              CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID)
+            );
+          }
+          else {
+            $actionlinks = sprintf("
+              <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>
+              <a class='action-item crm-hover-button' href=%s title='Cancel Item'><i class='crm-i fa-undo'></i></a>",
+              CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID),
+              CRM_Utils_System::url('civicrm/lineitem/cancel', 'reset=1&id=' . $lineItemID)
+            );
           }
 
-          $actionlinks = sprintf("
-            <a class='action-item crm-hover-button' href=%s title='Edit Item'><i class='crm-i fa-pencil'></i></a>
-            <a class='action-item crm-hover-button' href=%s title='Cancel Item'><i class='crm-i fa-undo'></i></a>",
-            CRM_Utils_System::url('civicrm/lineitem/edit', 'reset=1&id=' . $lineItemID),
-            CRM_Utils_System::url('civicrm/lineitem/cancel', 'reset=1&id=' . $lineItemID)
-          );
           if (!$isParticipantCount) {
             $lineItems[$priceSetID][$lineItemID]['participant_count'] = '';
           }
@@ -419,8 +428,7 @@ ORDER BY  ps.id, pf.weight ;
       if (in_array($dao->pf_id, $excludePriceFields)) {
         continue;
       }
-      $isQuickConfigSpecialChar = ($dao->is_quick == 1) ? '<b>*</b>' : '';
-      $priceFields[$dao->pfv_id] = sprintf("%s%s :: %s", $isQuickConfigSpecialChar, $dao->ps_label, $dao->pfv_label);
+      $priceFields[$dao->pfv_id] = sprintf("%s :: %s", $dao->ps_label, $dao->pfv_label);
     }
 
     if ($getCount) {
@@ -667,7 +675,7 @@ ORDER BY  ps.id, pf.weight ;
         if ($entityId) {
           $params['id'] = $entityId;
           $params['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Member_BAO_Membership', 'status_id', 'Current');
-          $params['is_override'] = TRUE; 
+          $params['is_override'] = TRUE;
         }
         $membership = civicrm_api3('Membership', 'create', $params);
         $entityID = $membership['id'];
