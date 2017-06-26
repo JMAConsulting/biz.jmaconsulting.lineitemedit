@@ -383,13 +383,19 @@ class CRM_Lineitemedit_Util {
    *      list of price fields OR count of price fields
    */
   public static function getPriceFieldLists($contributionID, $getCount = FALSE) {
-    // fetch the component that the price-set is used for
-    $usedForComponent = CRM_Core_DAO::singleValueQuery("SELECT ps.extends
-      FROM civicrm_line_item AS li
-      INNER JOIN civicrm_price_field AS pf ON li.price_field_id = pf.id
-      INNER JOIN civicrm_price_set AS ps ON pf.price_set_id = ps.id
-      WHERE li.contribution_id = {$contributionID}"
-    );
+    $priceSetID = 0;
+
+    $dao1 = CRM_Core_DAO::executeQuery("
+    SELECT pf.id, pf.price_set_id
+     FROM civicrm_line_item as li
+     INNER JOIN civicrm_price_field pf ON pf.id = li.price_field_id
+     WHERE li.contribution_id = {$contributionID} AND li.qty != 0 AND pf.html_type <> 'Checkbox'
+    ");
+    $excludePriceFields = array();
+    while ($dao1->fetch()) {
+      $excludePriceFields[] = $dao1->id;
+      $priceSetID = $dao1->price_set_id;
+    }
 
     $sql = "
 SELECT    pfv.id as pfv_id,
@@ -401,25 +407,10 @@ SELECT    pfv.id as pfv_id,
 FROM      civicrm_price_field_value as pfv
 LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
 LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
-WHERE  ps.extends LIKE '{$usedForComponent}' AND ps.is_quick_config = 0 AND pfv.id NOT IN (
-   SELECT li.price_field_value_id
-    FROM civicrm_line_item as li
-    WHERE li.contribution_id = {$contributionID} AND li.qty != 0
-  )
+WHERE  ps.id = {$priceSetID}
 ORDER BY  ps.id, pf.weight ;
 ";
     $dao = CRM_Core_DAO::executeQuery($sql);
-
-    $dao1 = CRM_Core_DAO::executeQuery("
-    SELECT pf.id
-     FROM civicrm_line_item as li
-     INNER JOIN civicrm_price_field pf ON pf.id = li.price_field_id
-     WHERE li.contribution_id = {$contributionID} AND li.qty != 0 AND pf.html_type <> 'Checkbox'
-    ");
-    $excludePriceFields = array();
-    while ($dao1->fetch()) {
-      $excludePriceFields[] = $dao1->id;
-    }
 
     $priceFields = array();
     while ($dao->fetch()) {
