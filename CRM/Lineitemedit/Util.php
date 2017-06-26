@@ -407,7 +407,7 @@ SELECT    pfv.id as pfv_id,
 FROM      civicrm_price_field_value as pfv
 LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
 LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
-WHERE  ps.id = {$priceSetID}
+WHERE  ps.id = {$priceSetID} AND ps.is_quick_config = 0
 ORDER BY  ps.id, pf.weight ;
 ";
     $dao = CRM_Core_DAO::executeQuery($sql);
