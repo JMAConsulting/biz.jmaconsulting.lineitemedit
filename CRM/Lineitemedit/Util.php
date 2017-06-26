@@ -401,7 +401,7 @@ SELECT    pfv.id as pfv_id,
 FROM      civicrm_price_field_value as pfv
 LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
 LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
-WHERE  ps.extends = {$usedForComponent} AND ps.is_quick_config = 0 AND pfv.id NOT IN (
+WHERE  ps.extends LIKE '{$usedForComponent}' AND ps.is_quick_config = 0 AND pfv.id NOT IN (
    SELECT li.price_field_value_id
     FROM civicrm_line_item as li
     WHERE li.contribution_id = {$contributionID} AND li.qty != 0
