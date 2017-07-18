@@ -175,17 +175,11 @@ class CRM_Lineitemedit_Util {
   public static function insertFinancialItemOnAdd($lineItem, $trxn) {
     $contribution = civicrm_api3('Contribution', 'getsingle', array('id' => $lineItem['contribution_id']));
 
+    $accountRelName = CRM_Contribute_BAO_Contribution::getFinancialAccountRelationship($contribution['id'], $lineItem['id']);
     $revenueFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
       $lineItem['financial_type_id'],
-      'Income Account is'
+      $accountRelName
     );
-
-    if (!empty($contribution['revenue_recognition_date'])) {
-      $revenueFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
-        $lineItem['financial_type_id'],
-        'Deferred Revenue Account is'
-      );
-    }
 
     $newFinancialItem = array(
       'transaction_date' => date('YmdHis'),
@@ -385,16 +379,16 @@ class CRM_Lineitemedit_Util {
   public static function getPriceFieldLists($contributionID, $getCount = FALSE) {
     $priceSetID = 0;
 
-    $dao1 = CRM_Core_DAO::executeQuery("
+    $dao = CRM_Core_DAO::executeQuery("
     SELECT pf.id, pf.price_set_id
      FROM civicrm_line_item as li
      INNER JOIN civicrm_price_field pf ON pf.id = li.price_field_id
      WHERE li.contribution_id = {$contributionID} AND li.qty != 0 AND pf.html_type <> 'Checkbox'
     ");
     $excludePriceFields = array();
-    while ($dao1->fetch()) {
-      $excludePriceFields[] = $dao1->id;
-      $priceSetID = $dao1->price_set_id;
+    while ($dao->fetch()) {
+      $excludePriceFields[] = $dao->id;
+      $priceSetID = $dao->price_set_id;
     }
 
     $sql = "
@@ -732,11 +726,7 @@ ORDER BY  ps.id, pf.weight ;
     );
     $financialItem['amount'] = $balanceAmount;
     $financialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid');
-    $accountRelName = 'Income Account is';
-    if (CRM_Utils_Array::value('revenue_recognition_date', $contribution)
-    ) {
-      $accountRelName = 'Deferred Revenue Account is';
-    }
+    $accountRelName = CRM_Contribute_BAO_Contribution::getFinancialAccountRelationship($contributionId, $financialItem['entity_id']);
     $financialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], $accountRelName);
     CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
     if ($taxAmountChanged && $balanceTaxAmount != 0) {
@@ -766,12 +756,7 @@ ORDER BY  ps.id, pf.weight ;
       )
     );
 
-    $accountRelName = 'Income Account is';
-    if (CRM_Utils_Array::value('revenue_recognition_date', $contribution) &&
-      strtotime($contribution['revenue_recognition_date']) > strtotime(date('Ymt'))
-    ) {
-      $accountRelName = 'Deferred Revenue Account is';
-    }
+    $accountRelName = CRM_Contribute_BAO_Contribution::getFinancialAccountRelationship($contributionId, $newLineItem['id']);
 
     $trxnArray[1] = array(
       'ft_amount' => -($prevLineItem['line_total'] + $prevLineItem['tax_amount']),
