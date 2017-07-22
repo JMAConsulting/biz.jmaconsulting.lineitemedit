@@ -209,7 +209,7 @@ class CRM_Lineitemedit_Util {
     }
 
     $lineItem['financial_item_id'] = $newFinancialItemDAO->id;
-    self::createDeferredTrxn($contribution['id'], $lineItem);
+    self::createDeferredTrxn($contribution['id'], $lineItem, 'addLineItem');
   }
 
   /**
@@ -219,52 +219,12 @@ class CRM_Lineitemedit_Util {
    * @param array $lineItem
    *
    */
-  public static function createDeferredTrxn($contributionID, $lineItem) {
-    if (CRM_Contribute_BAO_Contribution::checkContributeSettings('deferred_revenue_enabled')) {
-      $contributionDAO = new CRM_Contribute_DAO_Contribution();
-      $contributionDAO->id = $contributionID;
-      $contributionDAO->find(TRUE);
-      $revenueRecognitionDate = $contributionDAO->revenue_recognition_date;
-      if (!CRM_Utils_System::isNull($revenueRecognitionDate)) {
-        $results = civicrm_api3('EntityFinancialAccount', 'get', array(
-          'entity_table' => 'civicrm_financial_type',
-          'entity_id' => $lineItem['financial_type_id'],
-          'account_relationship' => array('IN' => array('Income Account is', 'Deferred Revenue Account is')),
-        ));
-        if ($results['count'] != 2) {
-          return;
-        }
-        $trxnParams = array(
-          'contribution_id' => $contributionDAO->id,
-          'fee_amount' => '0.00',
-          'currency' => $contributionDAO->currency,
-          'trxn_id' => $contributionDAO->trxn_id,
-          'status_id' => $contributionDAO->contribution_status_id,
-          'payment_instrument_id' => $contributionDAO->payment_instrument_id,
-          'check_number' => $contributionDAO->check_number,
-          'total_amount' => $lineItem['line_total'],
-          'trxn_date' => CRM_Utils_Date::isoToMysql($revenueRecognitionDate),
-        );
-        $accountRel = key(CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL, " AND v.name LIKE 'Income Account is' "));
-        foreach ($results['values'] as $result) {
-          if ($result['account_relationship'] == $accountRel) {
-            $trxnParams['to_financial_account_id'] = $result['financial_account_id'];
-          }
-          else {
-            $trxnParams['from_financial_account_id'] = $result['financial_account_id'];
-          }
-        }
-        $financialTxn = CRM_Core_BAO_FinancialTrxn::create($trxnParams);
-        $entityParams = array(
-          'entity_id' => $lineItem['financial_item_id'],
-          'entity_table' => 'civicrm_financial_item',
-          'amount' => $lineItem['line_total'],
-          'financial_trxn_id' => $financialTxn->id,
-        );
-        civicrm_api3('EntityFinancialTrxn', 'create', $entityParams);
-      }
-    }
-  }
+   public static function createDeferredTrxn($contributionID, $lineItem, $context, $update = FALSE) {
+    if (CRM_Contribute_BAO_Contribution::checkContributeSettings('deferred_revenue_enabled')) {;
+       $lineItem = array($contributionID => array($lineItem['id'] => $lineItem));
+       CRM_Core_BAO_FinancialTrxn::createDeferredTrxn($lineItem, $contributionID, $update, $context);
+     }
+   }
 
   /**
    * Function used to enter/update financial records upon edit of lineItem
