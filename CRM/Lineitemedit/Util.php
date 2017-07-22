@@ -445,8 +445,7 @@ ORDER BY  ps.id, pf.weight ;
    * @return bool|\CRM_Core_BAO_FinancialTrxn
    */
   public static function recordAdjustedAmt($updatedAmount, $contributionId, $taxAmount = NULL, $createTrxn = TRUE) {
-    $pendingAmount = CRM_Core_BAO_FinancialTrxn::getBalanceTrxnAmt($contributionId);
-    $pendingAmount = CRM_Utils_Array::value('total_amount', $pendingAmount, 0);
+    $pendingAmount = self::getPendingAmount($contributionId);
 
     $paidAmount = CRM_Utils_Array::value(
       'paid',
@@ -766,6 +765,22 @@ ORDER BY  ps.id, pf.weight ;
     );
     $adjustedTrxn = CRM_Core_BAO_FinancialTrxn::create($adjustedTrxnValues);
     return $adjustedTrxn->id;
+  }
+
+  public static function getPendingAmount($contributionId) {
+    $pendingAmount = CRM_Core_BAO_FinancialTrxn::getBalanceTrxnAmt($contributionId);
+    $pendingAmount = CRM_Utils_Array::value('total_amount', $pendingAmount, 0);
+    $pendingStatusId = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Pending');
+    $contributionFinancialTypeId = CRM_Core_DAO::getFieldValue('CRM_Contribute_BAO_Contribution', $contributionId, 'financial_type_id');
+    $toFinancialAccountId = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($contributionFinancialTypeId, 'Accounts Receivable Account is');
+    $query = "SELECT IFNULL(SUM(cft.total_amount), 0) AS total_amount
+      FROM civicrm_entity_financial_trxn ceft
+        INNER JOIN civicrm_financial_trxn cft ON ceft.financial_trxn_id = cft.id
+          AND ceft.entity_id = {$contributionId} AND ceft.entity_table = 'civicrm_contribution'
+          AND cft.status_id = {$pendingStatusId} AND cft.to_financial_account_id = {$toFinancialAccountId}
+    ";
+    $pendingAmount -= CRM_Core_DAO::singleValueQuery($query);
+    return $pendingAmount;
   }
 
 }
