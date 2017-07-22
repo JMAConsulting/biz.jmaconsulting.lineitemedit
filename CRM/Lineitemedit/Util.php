@@ -665,14 +665,13 @@ ORDER BY  ps.id, pf.weight ;
       'getsingle',
       array(
         'id' => $financialItem['entity_id'],
-        'return' => array('financial_type_id'),
       )
     );
     $financialItem['amount'] = $balanceAmount;
     $financialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid');
     $accountRelName = CRM_Contribute_BAO_Contribution::getFinancialAccountRelationship($contributionId, $financialItem['entity_id']);
     $financialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], $accountRelName);
-    CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
+    $ftItem = CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
     if ($taxAmountChanged && $balanceTaxAmount != 0) {
       $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
       $taxFinancialItemInfo = array_merge($financialItem, array(
@@ -683,6 +682,9 @@ ORDER BY  ps.id, pf.weight ;
       // create financial item for tax amount related to added line item
       CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
     }
+    $lineItem['deferred_line_total'] = $balanceAmount;
+    $lineItem['financial_item_id'] = $ftItem->id;
+    self::createDeferredTrxn($contributionId, $lineItem, 'UpdateLineItem', TRUE);
   }
 
   public static function recordChangeInFT(
