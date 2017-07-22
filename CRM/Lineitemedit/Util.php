@@ -377,19 +377,6 @@ class CRM_Lineitemedit_Util {
    *      list of price fields OR count of price fields
    */
   public static function getPriceFieldLists($contributionID, $getCount = FALSE) {
-    $priceSetID = 0;
-
-    $dao = CRM_Core_DAO::executeQuery("
-    SELECT pf.id, pf.price_set_id
-     FROM civicrm_line_item as li
-     INNER JOIN civicrm_price_field pf ON pf.id = li.price_field_id
-     WHERE li.contribution_id = {$contributionID} AND li.qty != 0 AND pf.html_type <> 'Checkbox'
-    ");
-    $excludePriceFields = array();
-    while ($dao->fetch()) {
-      $excludePriceFields[] = $dao->id;
-      $priceSetID = $dao->price_set_id;
-    }
 
     $sql = "
 SELECT    pfv.id as pfv_id,
@@ -401,18 +388,16 @@ SELECT    pfv.id as pfv_id,
 FROM      civicrm_price_field_value as pfv
 LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
 LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
-WHERE  ps.id = {$priceSetID} AND ps.is_quick_config = 0
+LEFT JOIN civicrm_line_item as cli ON cli.contribution_id = {$contributionID} AND cli.qty != 0 AND pf.id = cli.price_field_id
+WHERE  ps.is_quick_config = 0 AND ((cli.id IS NULL )  || (pf.html_type = 'Checkbox' AND cli.price_field_value_id <> pfv.id)) AND ps.id IN (SELECT pf.price_set_id FROM civicrm_line_item cli
+  INNER JOIN civicrm_price_field as pf ON (pf.id = cli.price_field_id AND cli.contribution_id = {$contributionID})
+)
 ORDER BY  ps.id, pf.weight ;
 ";
     $dao = CRM_Core_DAO::executeQuery($sql);
 
     $priceFields = array();
     while ($dao->fetch()) {
-      // exclude price fields which belong to other price-set that the existing contribution
-      //  doesn't have any lineitem
-      if (in_array($dao->pf_id, $excludePriceFields)) {
-        continue;
-      }
       $priceFields[$dao->pfv_id] = sprintf("%s :: %s", $dao->ps_label, $dao->pfv_label);
     }
 
