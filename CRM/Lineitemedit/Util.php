@@ -652,14 +652,6 @@ ORDER BY  ps.id, pf.weight ;
 
     $trxnId = self::createFinancialTrxnEntry($contributionId, $balanceAmount + $balanceTaxAmount);
     $trxnId = array('id' => $trxnId);
-    $contribution = civicrm_api3(
-      'Contribution',
-      'getsingle',
-      array(
-        'id' => $contributionId,
-        'return' => array('revenue_recognition_date'),
-      )
-    );
     $lineItem = civicrm_api3(
       'lineItem',
       'getsingle',
@@ -698,7 +690,7 @@ ORDER BY  ps.id, pf.weight ;
       'getsingle',
       array(
         'id' => $contributionId,
-        'return' => array('revenue_recognition_date', 'payment_instrument_id'),
+        'return' => array('payment_instrument_id'),
       )
     );
 
