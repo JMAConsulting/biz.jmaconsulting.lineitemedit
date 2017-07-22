@@ -701,12 +701,13 @@ ORDER BY  ps.id, pf.weight ;
     );
 
     $accountRelName = CRM_Contribute_BAO_Contribution::getFinancialAccountRelationship($contributionId, $newLineItem['id']);
-
+    $prevLineItem['deferred_line_total'] = -($prevLineItem['line_total']);
     $trxnArray[1] = array(
       'ft_amount' => -($prevLineItem['line_total'] + $prevLineItem['tax_amount']),
       'fi_amount' => -$prevLineItem['line_total'],
       'tax_amount' => -$prevLineItem['tax_amount'],
       'tax_ft' => $prevLineItem['financial_type_id'],
+      'deferred_line_item' => $prevLineItem,
     );
     $taxRates = CRM_Core_PseudoConstant::getTaxRates();
     $taxRates = CRM_Utils_Array::value($newLineItem['financial_type_id'], $taxRates, 0);
@@ -716,6 +717,7 @@ ORDER BY  ps.id, pf.weight ;
       'fi_amount' => $prevLineItem['line_total'],
       'tax_amount' => $newtax['tax_amount'],
       'tax_ft' => $newLineItem['financial_type_id'],
+      'deferred_line_item' => $newLineItem,
     );
     $trxnArray[2]['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($newLineItem['financial_type_id'], $accountRelName);
 
@@ -729,7 +731,7 @@ ORDER BY  ps.id, pf.weight ;
       }
       $financialItem['amount'] = $values['fi_amount'];
       $trxnId = array('id' => $trxnId);
-      CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
+      $ftItem = CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
       if ($values['tax_amount'] != 0) {
         $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
         $taxFinancialItemInfo = array_merge($financialItem, array(
@@ -740,6 +742,8 @@ ORDER BY  ps.id, pf.weight ;
         // create financial item for tax amount related to added line item
         CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
       }
+      $values['deferred_line_item']['financial_item_id'] = $ftItem->id;
+      self::createDeferredTrxn($contributionId, $values['deferred_line_item'], 'UpdateLineItem', TRUE);
     }
   }
 
