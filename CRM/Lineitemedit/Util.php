@@ -460,28 +460,35 @@ ORDER BY  ps.id, pf.weight ;
     $balanceAmt = $updatedAmount - $paidAmount - $pendingAmount;
 
     $contributionStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
-    $partiallyPaidStatusId = array_search('Partially paid', $contributionStatuses);
-    $pendingRefundStatusId = array_search('Pending refund', $contributionStatuses);
-    $completedStatusId = array_search('Completed', $contributionStatuses);
 
     $updatedContributionDAO = new CRM_Contribute_BAO_Contribution();
     $adjustedTrxn = $skip = FALSE;
     if ($balanceAmt) {
-      if ($updatedAmount > $paidAmount) {
-        $contributionStatusVal = $partiallyPaidStatusId;
+      if ($paidAmount <= 0 && $balanceAmt != 0) {
+        $contributionStatusVal = 'Pending';
+      }
+      elseif ($paidAmount && $updatedAmount > $paidAmount) {
+        $contributionStatusVal = 'Partially paid';
       }
       elseif ($balanceAmt < $paidAmount) {
-        $contributionStatusVal = $pendingRefundStatusId;
+        $contributionStatusVal = 'Pending refund';
+      }
+      elseif ($updatedAmount == $paidAmount) {
+        $contributionStatusVal = 'Completed';
       }
       elseif ($balanceAmt = $paidAmount) {
         //skip updating the contribution status if no payment is made
         $skip = TRUE;
       }
+
       // update contribution status and total amount without trigger financial code
       // as this is handled in current BAO function used for change selection
       $updatedContributionDAO->id = $contributionId;
       if (!$skip) {
-        $updatedContributionDAO->contribution_status_id = $contributionStatusVal;
+        $updatedContributionDAO->contribution_status_id = array_search($contributionStatusVal, $contributionStatuses);
+        if ($contributionStatusVal == 'Pending') {
+          $updatedContributionDAO->is_pay_later = TRUE;
+        }
       }
       $updatedContribution = civicrm_api3(
         'Contribution',
