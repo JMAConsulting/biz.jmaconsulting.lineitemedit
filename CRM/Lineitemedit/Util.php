@@ -219,10 +219,10 @@ class CRM_Lineitemedit_Util {
    * @param array $lineItem
    *
    */
-   public static function createDeferredTrxn($contributionID, $lineItem, $context, $update = FALSE) {
-    if (CRM_Contribute_BAO_Contribution::checkContributeSettings('deferred_revenue_enabled')) {;
+   public static function createDeferredTrxn($contributionID, $lineItem, $context) {
+    if (CRM_Contribute_BAO_Contribution::checkContributeSettings('deferred_revenue_enabled')) {
        $lineItem = array($contributionID => array($lineItem['id'] => $lineItem));
-       CRM_Core_BAO_FinancialTrxn::createDeferredTrxn($lineItem, $contributionID, $update, $context);
+       CRM_Core_BAO_FinancialTrxn::createDeferredTrxn($lineItem, $contributionID, TRUE, $context);
      }
    }
 
@@ -589,12 +589,13 @@ ORDER BY  ps.id, pf.weight ;
      if (!empty($entityInfo['mt_id'])) {
        $entityTable = 'civicrm_membership';
      }
-     else {
-       $eventID = CRM_Core_DAO::singleValueQuery("
-        SELECT entity_id FROM civicrm_price_set_entity
-          WHERE `entity_table` = 'civicrm_event' AND `price_set_id` = " . $entityInfo['ps_id']
-       );
-       $entityTable = $eventID ? 'civicrm_participant' : $entityTable;
+     elseif (!$entityId) {
+       $result = civicrm_api3('LineItem', 'getsingle', array(
+         'return' => array("entity_id"),
+         'contribution_id' => $contributionID,
+         'options' => array('limit' => 1),
+       ));
+       $entityId = $result['entity_id'];
      }
 
      switch ($entityTable) {
@@ -617,30 +618,6 @@ ORDER BY  ps.id, pf.weight ;
         $entityID = $membership['id'];
         civicrm_api3('MembershipPayment', 'create', array(
           'membership_id' => $entityID,
-          'contribution_id' => $contributionID,
-        ));
-        break;
-
-       case 'civicrm_participant':
-        $roleIDs = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $eventID, 'default_role_id');
-        $roleIDs = (array) explode(CRM_Core_DAO::VALUE_SEPARATOR, $roleIDs);
-        $feeLevel = sprintf("%s - %d", $entityInfo['pfv_label'], (int) $qty);
-        $params = array(
-          'event_id' => $eventID,
-          'contact_id' => CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $contributionID, 'contact_id'),
-          'role_id' => $roleIDs,
-          'fee_amount' => $entityInfo['pfv_amount'],
-          'fee_level' => $feeLevel,
-          'is_pay_later' => 1,
-          'skipLineItem' => TRUE,
-        );
-        if ($entityId) {
-          $params['id'] = $entityId;
-        }
-        $participant = civicrm_api3('Participant', 'create', $params);
-        $entityID = $participant['id'];
-        civicrm_api3('ParticipantPayment', 'create', array(
-          'participant_id' => $entityID,
           'contribution_id' => $contributionID,
         ));
         break;
@@ -683,7 +660,7 @@ ORDER BY  ps.id, pf.weight ;
     }
     $lineItem['deferred_line_total'] = $balanceAmount;
     $lineItem['financial_item_id'] = $ftItem->id;
-    self::createDeferredTrxn($contributionId, $lineItem, 'UpdateLineItem', TRUE);
+    self::createDeferredTrxn($contributionId, $lineItem, 'UpdateLineItem');
   }
 
   public static function recordChangeInFT(
@@ -744,7 +721,7 @@ ORDER BY  ps.id, pf.weight ;
         CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
       }
       $values['deferred_line_item']['financial_item_id'] = $ftItem->id;
-      self::createDeferredTrxn($contributionId, $values['deferred_line_item'], 'UpdateLineItem', TRUE);
+      self::createDeferredTrxn($contributionId, $values['deferred_line_item'], 'UpdateLineItem');
     }
   }
 

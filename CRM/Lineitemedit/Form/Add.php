@@ -172,10 +172,10 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
       $this->_contributionID,
       $taxAmount
     );
-
+    $lineItem = civicrm_api3('LineItem', 'getsingle', array('id' => $newLineItem['id']));
     // record financial item on addition of lineitem
     if ($trxn) {
-      CRM_Lineitemedit_Util::insertFinancialItemOnAdd($newLineItem['values'][$newLineItem['id']], $trxn);
+      CRM_Lineitemedit_Util::insertFinancialItemOnAdd($lineItem, $trxn);
     }
     CRM_Core_Session::singleton()->pushUserContext(CRM_Utils_System::url(CRM_Utils_System::currentPath()));
   }
