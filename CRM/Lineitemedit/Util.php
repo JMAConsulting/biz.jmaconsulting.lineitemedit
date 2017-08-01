@@ -462,7 +462,7 @@ ORDER BY  ps.id, pf.weight ;
 
     $balanceAmt = $updatedAmount - $paidAmount;
     if ($contribution['total_amount'] != $paidAmount) {
-      $balanceAmt -= self::getPendingAmount($contributionId, $paidAmount);
+      $balanceAmt -= self::getPendingAmount($contributionId, $contribution['total_amount'], $paidAmount);
     }
 
     $contributionStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
@@ -761,10 +761,24 @@ ORDER BY  ps.id, pf.weight ;
     return $adjustedTrxn->id;
   }
 
-  public static function getPendingAmount($contributionId, $contributionAmount) {
-    $pendingAmount = CRM_Core_BAO_FinancialTrxn::getBalanceTrxnAmt($contributionId);
-    $pendingAmount = CRM_Utils_Array::value('total_amount', $pendingAmount, 0);
-    return ($pendingAmount-$contributionAmount);
+  public static function getPendingAmount($contributionId, $contributionAmount, $paidAmount) {
+    $contributionFinancialTypeId = CRM_Core_DAO::getFieldValue('CRM_Contribute_BAO_Contribution', $contributionId, 'financial_type_id');
+    $toFinancialAccountId = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($contributionFinancialTypeId, 'Accounts Receivable Account is');
+    $hasARAmount = civicrm_api3('EntityFinancialTrxn', 'getCount', array(
+      'financial_trxn_id.status_id' => "Pending",
+      'entity_table' => "civicrm_contribution",
+      'entity_id' => $contributionId,
+      'financial_trxn_id.to_financial_account_id' => $toFinancialAccountId,
+    ));
+    if ($hasARAmount) {
+      $pendingAmount = CRM_Core_BAO_FinancialTrxn::getBalanceTrxnAmt($contributionId);
+      $pendingAmount = CRM_Utils_Array::value('total_amount', $pendingAmount, 0);
+      $pendingAmount -= $paidAmount;
+    }
+    else {
+      $pendingAmount = $contributionAmount - $paidAmount;
+    }
+    return $pendingAmount;
   }
 
 }
