@@ -349,7 +349,8 @@ FROM      civicrm_price_field_value as pfv
 LEFT JOIN civicrm_price_field as pf ON (pf.id = pfv.price_field_id)
 LEFT JOIN civicrm_price_set as ps ON (ps.id = pf.price_set_id AND ps.is_active = 1)
 LEFT JOIN civicrm_line_item as cli ON cli.contribution_id = {$contributionID} AND cli.qty != 0 AND pf.id = cli.price_field_id
-WHERE  ps.is_quick_config = 0 AND ((cli.id IS NULL )  || (pf.html_type = 'Checkbox' AND cli.price_field_value_id <> pfv.id)) AND ps.id IN (SELECT pf.price_set_id FROM civicrm_line_item cli
+WHERE  ps.is_quick_config = 0 AND ((cli.id IS NULL )  || (pf.html_type = 'Checkbox' AND pfv.id NOT IN (SELECT price_field_value_id FROM civicrm_line_item
+  WHERE contribution_id = {$contributionID} AND qty <> 0))) AND ps.id IN (SELECT pf.price_set_id FROM civicrm_line_item cli
   INNER JOIN civicrm_price_field as pf ON (pf.id = cli.price_field_id AND cli.contribution_id = {$contributionID})
 )
 ORDER BY  ps.id, pf.weight ;
@@ -590,12 +591,18 @@ ORDER BY  ps.id, pf.weight ;
        $entityTable = 'civicrm_membership';
      }
      elseif (!$entityId) {
-       $result = civicrm_api3('LineItem', 'getsingle', array(
-         'return' => array("entity_id"),
-         'contribution_id' => $contributionID,
-         'options' => array('limit' => 1),
-       ));
-       $entityId = $result['entity_id'];
+       try {
+         $result = civicrm_api3('LineItem', 'getsingle', array(
+           'return' => array("entity_id", 'entity_table'),
+           'contribution_id' => $contributionID,
+	   'entity_table' => 'civicrm_participant',
+           'options' => array('limit' => 1),
+         ));
+         $entityId = $result['entity_id'];
+         $entityTable = 'civicrm_participant';
+       } catch (CiviCRM_API3_Exception $e) {
+         // do nothing.
+       }
      }
 
      switch ($entityTable) {
