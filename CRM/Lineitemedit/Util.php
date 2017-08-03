@@ -473,14 +473,14 @@ ORDER BY  ps.id, pf.weight ;
       if ($paidAmount <= 0 && $balanceAmt != 0) {
         $contributionStatusVal = 'Pending';
       }
+      elseif ($updatedAmount == $paidAmount) {
+        $contributionStatusVal = 'Completed';
+      }
       elseif ($paidAmount && $updatedAmount > $paidAmount) {
         $contributionStatusVal = 'Partially paid';
       }
       elseif ($balanceAmt < $paidAmount) {
         $contributionStatusVal = 'Pending refund';
-      }
-      elseif ($updatedAmount == $paidAmount) {
-        $contributionStatusVal = 'Completed';
       }
       elseif ($balanceAmt = $paidAmount) {
         //skip updating the contribution status if no payment is made
