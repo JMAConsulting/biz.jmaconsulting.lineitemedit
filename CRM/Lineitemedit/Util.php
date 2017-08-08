@@ -623,8 +623,7 @@ ORDER BY  ps.id, pf.weight ;
         );
         if ($entityId) {
           $params['id'] = $entityId;
-          $params['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Member_BAO_Membership', 'status_id', 'Current');
-          $params['is_override'] = TRUE;
+          $params['skipStatusCal'] = FALSE;
         }
         $membership = civicrm_api3('Membership', 'create', $params);
         $entityID = $membership['id'];

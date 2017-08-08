@@ -151,14 +151,19 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       $membershipTypeId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $this->_lineitemInfo['price_field_value_id'], 'membership_type_id');
       $memberNumTerms = empty($memberNumTerms) ? 1 : $memberNumTerms;
       $memberNumTerms = $values['qty'] * $memberNumTerms;
-      $status = ($values['qty'] == 0) ? 'Cancelled' : 'Current';
-      civicrm_api3('Membership', 'create', array(
+      $memParams = array(
         'id' => $this->_lineitemInfo['entity_id'],
         'num_terms' => $memberNumTerms,
-        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Member_BAO_Membership', 'status_id', $status),
         'membership_type_id' => $membershipTypeId,
-        'is_override' => TRUE,
-      ));
+      );
+      if ($values['qty'] == 0) {
+        $memParams['status_id'] = 'Cancelled';
+        $memParams['is_override'] = TRUE;
+      }
+      else {
+        $memParams['skipStatusCal'] = FALSE;
+      }
+      civicrm_api3('Membership', 'create', $memParams);
       $this->ajaxResponse['updateTabs']['#tab_member'] = CRM_Contact_BAO_Contact::getCountComponent('membership', $contactId);
     }
 
