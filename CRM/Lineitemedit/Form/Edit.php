@@ -133,7 +133,10 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     $values['line_total'] = CRM_Utils_Rule::cleanMoney($values['line_total']);
 
     $balanceAmount = ($values['line_total'] - $this->_lineitemInfo['line_total']);
-
+    $contactId = CRM_Core_DAO::getFieldValue('CRM_Contribute_BAO_Contribution',
+      $this->_lineitemInfo['contribution_id'],
+      'contact_id'
+    );
     $lineItem = civicrm_api3('LineItem', 'create', array(
       'id' => $this->_id,
       'financial_type_id' => $values['financial_type_id'],
@@ -156,6 +159,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
         'membership_type_id' => $membershipTypeId,
         'is_override' => TRUE,
       ));
+      $this->ajaxResponse['updateTabs']['#tab_member'] = CRM_Contact_BAO_Contact::getCountComponent('membership', $contactId);
     }
 
     // calculate balance, tax and paidamount later used to adjust transaction

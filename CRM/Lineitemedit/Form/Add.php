@@ -178,6 +178,13 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
       CRM_Lineitemedit_Util::insertFinancialItemOnAdd($lineItem, $trxn);
     }
     CRM_Core_Session::singleton()->pushUserContext(CRM_Utils_System::url(CRM_Utils_System::currentPath()));
+    if ($entityTable == 'civicrm_membership') {
+      $contactId = CRM_Core_DAO::getFieldValue('CRM_Contribute_BAO_Contribution',
+        $this->_contributionID,
+        'contact_id'
+      );
+      $this->ajaxResponse['updateTabs']['#tab_member'] = CRM_Contact_BAO_Contact::getCountComponent('membership', $contactId);
+    }
   }
 
 }
