@@ -119,8 +119,11 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
   }
 
   public function postProcess() {
-    $values = $this->exportValues();
+    $params = $this->exportValues();
+    $this->submit($params);
+  }
 
+  public function submit($values) {
     // check for any cancelled line item which was recorded for same price field,
     //  if found then use its ID update it rather then creating a new line item as
     //  civicrm doesn't allow multiple line item registered against same
@@ -185,6 +188,12 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
       );
       $this->ajaxResponse['updateTabs']['#tab_member'] = CRM_Contact_BAO_Contact::getCountComponent('membership', $contactId);
     }
+  }
+
+  public function testSubmit($params) {
+    $this->_contributionID = $params['contribution_id'];
+    $this->_fieldNames = CRM_Lineitemedit_Util::getLineitemFieldNames(TRUE);
+    $this->submit($params);
   }
 
 }

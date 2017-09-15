@@ -12,6 +12,9 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
   /**
    * The line-item values of an existing contribution
    */
+
+  public $_id;
+
   public $_values;
 
   public $_isQuickConfig = FALSE;
@@ -22,7 +25,10 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
 
   public function preProcess() {
     $this->_id = CRM_Utils_Request::retrieve('id', 'Positive', $this);
+    $this->assignFormVariables();
+  }
 
+  public function assignFormVariables() {
     $this->_lineitemInfo = civicrm_api3('lineItem', 'getsingle', array('id' => $this->_id));
     foreach (CRM_Lineitemedit_Util::getLineitemFieldNames() as $attribute) {
       $this->_values[$attribute] = CRM_Utils_Array::value($attribute, $this->_lineitemInfo, 0);
@@ -130,6 +136,11 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
 
   public function postProcess() {
     $values = $this->exportValues();
+    $this->submit($values);
+    parent::postProcess();
+  }
+
+  public function submit($values) {
     $values['line_total'] = CRM_Utils_Rule::cleanMoney($values['line_total']);
 
     $balanceAmount = ($values['line_total'] - $this->_lineitemInfo['line_total']);
@@ -183,7 +194,11 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       $this->_id,
       $this->_lineitemInfo
     );
+  }
 
-    parent::postProcess();
+  public function testSubmit($params) {
+    $this->_id = $params['id'];
+    $this->assignFormVariables();
+    $this->submit($params);
   }
 }

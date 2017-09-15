@@ -175,7 +175,7 @@ class CRM_Lineitemedit_Util {
   public static function insertFinancialItemOnAdd($lineItem, $trxn) {
     $contribution = civicrm_api3('Contribution', 'getsingle', array('id' => $lineItem['contribution_id']));
 
-    $accountRelName = CRM_Contribute_BAO_Contribution::getFinancialAccountRelationship($contribution['id'], $lineItem['id']);
+    $accountRelName = self::getFinancialAccountRelationship($contribution['id'], $lineItem['id']);
     $revenueFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
       $lineItem['financial_type_id'],
       $accountRelName
@@ -510,6 +510,7 @@ ORDER BY  ps.id, pf.weight ;
         $updatedContributionDAO->tax_amount = $taxAmount;
       }
       $updatedContributionDAO->save();
+
       if (!$createTrxn) {
         return NULL;
       }
@@ -656,7 +657,7 @@ ORDER BY  ps.id, pf.weight ;
     );
     $financialItem['amount'] = $balanceAmount;
     $financialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid');
-    $accountRelName = CRM_Contribute_BAO_Contribution::getFinancialAccountRelationship($contributionId, $financialItem['entity_id']);
+    $accountRelName = self::getFinancialAccountRelationship($contributionId, $financialItem['entity_id']);
     $financialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], $accountRelName);
     $ftItem = CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
     if ($taxAmountChanged && $balanceTaxAmount != 0) {
@@ -689,7 +690,7 @@ ORDER BY  ps.id, pf.weight ;
       )
     );
 
-    $accountRelName = CRM_Contribute_BAO_Contribution::getFinancialAccountRelationship($contributionId, $newLineItem['id']);
+    $accountRelName = self::getFinancialAccountRelationship($contributionId, $newLineItem['id']);
     $prevLineItem['deferred_line_total'] = -($prevLineItem['line_total']);
     $trxnArray[1] = array(
       'ft_amount' => -($prevLineItem['line_total'] + $prevLineItem['tax_amount']),
@@ -780,4 +781,45 @@ ORDER BY  ps.id, pf.weight ;
     return $pendingAmount;
   }
 
+  /**
+   * Function to decide account relationship name for financial entries.
+   *
+   * @param int $contributionId
+   *
+   * @param int $lineItemId
+   *
+   * @return string
+   */
+  public static function getFinancialAccountRelationship($contributionId, $lineItemId = NULL) {
+    $accountRelName = 'Income Account is';
+    $contribution = civicrm_api3('Contribution', 'getSingle', array(
+      'return' => array("revenue_recognition_date", "receive_date"),
+      'id' => $contributionId,
+    ));
+    $date = CRM_Utils_Array::value('receive_date', $contribution);
+    if (!$date) {
+      $date = date('Ymt');
+    }
+    else {
+      $date = date('Ymt', strtotime($date));
+    }
+    $isMembership = FALSE;
+    if ($lineItemId) {
+      $result = civicrm_api3('LineItem', 'getsingle', array(
+        'return' => array("price_field_value_id.membership_type_id"),
+        'id' => $lineItemId,
+      ));
+      if (!empty($result['price_field_value_id.membership_type_id'])) {
+        $isMembership = TRUE;
+      }
+    }
+    if (!empty($contribution['revenue_recognition_date'])
+      && (date('Ymt', strtotime($contribution['revenue_recognition_date'])) > $date
+        || $isMembership
+      )
+    ) {
+      $accountRelName = 'Deferred Revenue Account is';
+    }
+    return $accountRelName;
+  }
 }

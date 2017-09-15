@@ -17,7 +17,10 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
 
   public function preProcess() {
     $this->_id = CRM_Utils_Request::retrieve('id', 'Positive', $this);
+    $this->assignFormVariables();
+  }
 
+  public function assignFormVariables() {
     // fetch line item information of given ID
     $this->_lineitemInfo = civicrm_api3('LineItem', 'getsingle', array('id' => $this->_id));
 
@@ -52,6 +55,19 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
   }
 
   public function postProcess() {
+    $this->submit();
+    if ($this->_lineitemInfo['entity_table'] == 'civicrm_membership') {
+      $contactId = CRM_Core_DAO::getFieldValue('CRM_Contribute_BAO_Contribution',
+        $this->_lineitemInfo['contribution_id'],
+        'contact_id'
+      );
+      $this->ajaxResponse['updateTabs']['#tab_member'] = CRM_Contact_BAO_Contact::getCountComponent('membership', $contactId);
+    }
+
+    parent::postProcess();
+  }
+
+  public function submit() {
     CRM_Lineitemedit_Util::cancelEntity($this->_lineitemInfo['entity_id'], $this->_lineitemInfo['entity_table']);
 
     // change total_price and qty of current line item to 0, on cancel
@@ -80,15 +96,11 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
       $this->_id,
       $this->_lineitemInfo
     );
-    if ($this->_lineitemInfo['entity_table'] == 'civicrm_membership') {
-      $contactId = CRM_Core_DAO::getFieldValue('CRM_Contribute_BAO_Contribution',
-        $this->_lineitemInfo['contribution_id'],
-        'contact_id'
-      );
-      $this->ajaxResponse['updateTabs']['#tab_member'] = CRM_Contact_BAO_Contact::getCountComponent('membership', $contactId);
-    }
-
-    parent::postProcess();
   }
 
+  public function testSubmit($id) {
+    $this->_id = $id;
+    $this->assignFormVariables();
+    $this->submit();
+  }
 }
