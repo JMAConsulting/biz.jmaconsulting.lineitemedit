@@ -202,7 +202,7 @@ class CRM_Lineitemedit_Util {
       $taxFinancialItemInfo = array_merge($newFinancialItem, array(
         'amount' => $lineItem['tax_amount'],
         'description' => $taxTerm,
-        'financial_account_id' => CRM_Contribute_BAO_Contribution::getFinancialAccountId($lineItem['financial_type_id']),
+        'financial_account_id' => self::getFinancialAccountId($lineItem['financial_type_id']),
       ));
       // create financial item for tax amount related to added line item
       CRM_Financial_BAO_FinancialItem::create($taxFinancialItemInfo, NULL, $trxnId);
@@ -645,7 +645,6 @@ ORDER BY  ps.id, pf.weight ;
     $balanceTaxAmount,
     $taxAmountChanged
   ) {
-
     $trxnId = self::createFinancialTrxnEntry($contributionId, $balanceAmount + $balanceTaxAmount);
     $trxnId = array('id' => $trxnId);
     $lineItem = civicrm_api3(
@@ -822,4 +821,25 @@ ORDER BY  ps.id, pf.weight ;
     }
     return $accountRelName;
   }
+
+  /**
+   * Get financial account id has 'Sales Tax Account is' account relationship with financial type.
+   *
+   * @param int $financialTypeId
+   *
+   * @return int
+   *   Financial Account Id
+   */
+  public static function getFinancialAccountId($financialTypeId) {
+    $accountRel = key(CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL, " AND v.name LIKE 'Sales Tax Account is' "));
+    $searchParams = array(
+      'entity_table' => 'civicrm_financial_type',
+      'entity_id' => $financialTypeId,
+      'account_relationship' => $accountRel,
+    );
+    $result = array();
+    CRM_Financial_BAO_FinancialTypeAccount::retrieve($searchParams, $result);
+    return CRM_Utils_Array::value('financial_account_id', $result);
+  }
+
 }

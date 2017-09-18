@@ -76,7 +76,7 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
       'qty' => 0,
       'participant_count' => 0,
       'line_total' => 0.00,
-      'tax_amount' => NULL,
+      'tax_amount' => 0.00,
     ));
 
     // calculate balance, tax and paidamount later used to adjust transaction

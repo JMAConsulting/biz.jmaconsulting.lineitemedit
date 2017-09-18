@@ -1,6 +1,6 @@
 <?php
 
-require_once 'BaseTest.php';
+require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . '../BaseTest.php';
 use Civi\Test\HeadlessInterface;
 use Civi\Test\HookInterface;
 use Civi\Test\TransactionalInterface;
@@ -19,8 +19,7 @@ use Civi\Test\TransactionalInterface;
  *
  * @group headless
  */
-class CRM_Lineitemedit_Form_AddTest extends CRM_Lineitemedit_Form_BaseTest {
-
+class CRM_Lineitemedit_Form_SaleTax_AddTest extends CRM_Lineitemedit_Form_BaseTest {
   public function setUpHeadless() {
     // Civi\Test has many helpers, like install(), uninstall(), sql(), and sqlFile().
     // See: https://github.com/civicrm/org.civicrm.testapalooza/blob/master/civi-test.md
@@ -30,21 +29,32 @@ class CRM_Lineitemedit_Form_AddTest extends CRM_Lineitemedit_Form_BaseTest {
   }
 
   public function setUp() {
+    $this->_createContri = FALSE;
     parent::setUp();
   }
 
   public function tearDown() {
+    $this->disableTaxAndInvoicing();
     parent::tearDown();
   }
 
   public function testLineTotalChangeWithPriceSet() {
-    $priceFieldValues = $this->createPriceSet();
+    $contactId = $this->createDummyContact();
+    $this->enableTaxAndInvoicing();
+    $FTname = 'Financial-Type -' . substr(sha1(rand()), 0, 7);
+    $financialType = $this->createFinancialType(array('name' => $FTname));
+    $financialAccount = $this->relationForFinancialTypeWithFinancialAccount($financialType['id']);
+    $priceFieldValues = $this->createPriceSet(array('financial_type_id' => $financialType['id']));
     $priceFieldID = key($priceFieldValues);
+
     $contactID = $this->createDummyContact();
     $check = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'payment_instrument_id', 'Check');
     $params = array(
-      'total_amount' => 100,
-      'financial_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Donation'),
+      'total_amount' => 110,
+      'fee_amount' => 0.00,
+      'net_amount' => 110,
+      'tax_amount' => 10,
+      'financial_type_id' => $financialType['id'],
       'receive_date' => '04/21/2015',
       'receive_date_time' => '11:27PM',
       'contact_id' => $contactID,
@@ -61,31 +71,49 @@ class CRM_Lineitemedit_Form_AddTest extends CRM_Lineitemedit_Form_BaseTest {
 
     // Contribution amount and status before LineItem add
     $this->assertEquals('Completed', $contribution['contribution_status']);
-    $this->assertEquals(100.00, $contribution['total_amount']);
+    $this->assertEquals(110.00, $contribution['total_amount']);
 
     $form = new CRM_Lineitemedit_Form_Add();
     $lineItemInfo = $this->callAPISuccessGetSingle('LineItem', array('contribution_id' =>$contribution['id']));
     $lineItemInfo['line_total'] = $lineItemInfo['unit_price'] += 100;
+    $lineItemInfo['tax_amount'] += 10;
     $lineItemInfo['price_field_value_id'] = $priceFieldValues[$priceFieldID][1];
     $form->testSubmit($lineItemInfo);
 
     // Contribution amount and status after LineItem edit
     $contribution = $this->callAPISuccessGetSingle('Contribution', array('id' => $contribution['id']));
     $this->assertEquals('Partially paid', $contribution['contribution_status']);
-    $this->assertEquals(300.00, $contribution['total_amount']);
+    $this->assertEquals(330.00, $contribution['total_amount']);
 
+    $financialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($financialType['id'], 'Income Account is');
     $actualFinancialItemEntries = $this->getFinancialItemsByContributionID($contribution['id']);
     $expectedFinancialItemEntries = array(
       array(
         'contact_id' => $contactID,
         'description' => 'Price Field 1',
         'amount' => 100.00,
+        'financial_account_id' => $financialAccountID,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Paid'),
+      ),
+      array(
+        'contact_id' => $contactID,
+        'description' => 'Sales Tax',
+        'amount' => 10.00,
+        'financial_account_id' => CRM_Lineitemedit_Util::getFinancialAccountId($financialType['id']),
         'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Paid'),
       ),
       array(
         'contact_id' => $contactID,
         'description' => 'Price Field 1',
         'amount' => 200.00,
+        'financial_account_id' => $financialAccountID,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid'),
+      ),
+      array(
+        'contact_id' => $contactID,
+        'description' => 'Sales Tax',
+        'amount' => 20.00,
+        'financial_account_id' => CRM_Lineitemedit_Util::getFinancialAccountId($financialType['id']),
         'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid'),
       ),
     );
@@ -94,21 +122,51 @@ class CRM_Lineitemedit_Form_AddTest extends CRM_Lineitemedit_Form_BaseTest {
     $actualFinancialTrxnEntries = $this->getFinancialTrxnsByContributionID($contribution['id']);
     $expectedFinancialTrxnEntries = array(
       array(
-        'total_amount' => 100.00,
-        'net_amount' => 100.00,
+        'total_amount' => 110.00,
+        'net_amount' => 110.00,
         'is_payment' => 1,
         'payment_instrument_id' => $check,
         'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
       ),
       array(
-        'total_amount' => 200.00,
-        'net_amount' => 200.00,
+        'total_amount' => 220.00,
+        'net_amount' => 220.00,
         'is_payment' => 0,
         'payment_instrument_id' => $check,
         'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Partially paid'),
       ),
     );
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
+  }
+
+  /**
+   * Function to create contribution with tax.
+   */
+  public function createContributionWithTax() {
+    $contactId = $this->createDummyContact();
+    $this->enableTaxAndInvoicing();
+    $financialType = $this->createFinancialType();
+    $financialAccount = $this->relationForFinancialTypeWithFinancialAccount($financialType['id']);
+    $form = new CRM_Contribute_Form_Contribution();
+
+    $form->testSubmit(array(
+       'total_amount' => 100,
+        'financial_type_id' => $financialType['id'],
+        'receive_date' => '04/21/2015',
+        'receive_date_time' => '11:27PM',
+        'contact_id' => $contactId,
+        'contribution_status_id' => 1,
+        'price_set_id' => 0,
+      ),
+      CRM_Core_Action::ADD
+    );
+    $contribution = $this->callAPISuccessGetSingle('Contribution',
+      array(
+        'contact_id' => $contactId,
+        'return' => array('tax_amount', 'total_amount'),
+      )
+    );
+    return array($contribution, $financialAccount);
   }
 
 }

@@ -30,6 +30,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
 
   public function assignFormVariables() {
     $this->_lineitemInfo = civicrm_api3('lineItem', 'getsingle', array('id' => $this->_id));
+    $this->_lineitemInfo['tax_amount'] = CRM_Utils_Array::value('tax_amount', $this->_lineitemInfo, 0.00);
     foreach (CRM_Lineitemedit_Util::getLineitemFieldNames() as $attribute) {
       $this->_values[$attribute] = CRM_Utils_Array::value($attribute, $this->_lineitemInfo, 0);
     }
@@ -148,14 +149,17 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       $this->_lineitemInfo['contribution_id'],
       'contact_id'
     );
-    $lineItem = civicrm_api3('LineItem', 'create', array(
+    $params = array(
       'id' => $this->_id,
       'financial_type_id' => $values['financial_type_id'],
       'label' => $values['label'],
       'qty' => $values['qty'],
       'unit_price' => CRM_Utils_Rule::cleanMoney($values['unit_price']),
       'line_total' => $values['line_total'],
-    ));
+      'tax_amount' => CRM_Utils_Array::value('tax_amount', $values, 0.00),
+    );
+    $lineItem = CRM_Price_BAO_LineItem::create($params);
+    $lineItem = $lineItem->toArray();
 
     if ($this->_lineitemInfo['entity_table'] == 'civicrm_membership') {
       $memberNumTerms = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $this->_lineitemInfo['price_field_value_id'], 'membership_num_terms');
@@ -197,7 +201,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
   }
 
   public function testSubmit($params) {
-    $this->_id = $params['id'];
+    $this->_id = (int) $params['id'];
     $this->assignFormVariables();
     $this->submit($params);
   }
