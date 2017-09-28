@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <extension key="biz.jmaconsulting.lineitemedit" type="module">
   <file>lineitemedit</file>
-  <name>Edit Lineitem Extension</name>
-  <description>This extension allow user to edit associated Lineitem(s) of a Contribution</description>
+  <name>Edit Line Item Extension</name>
+  <description>This extension allows a backend user to add, edit and cancel line item(s) associated with a Contribution.</description>
   <license>AGPL-3.0</license>
   <maintainer>
     <author>Monish Deb</author>
@@ -20,7 +20,8 @@
   <compatibility>
     <ver>4.7</ver>
   </compatibility>
-  <comments>This module allow user to edit associated Lineitem(s) of Contribution</comments>
+  <comments>This extension allows a backend user to add, edit and cancel line item(s) associated with a Contribution.
+  </comments>
   <civix>
     <namespace>CRM/Lineitemedit</namespace>
   </civix>
