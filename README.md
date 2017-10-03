@@ -20,11 +20,11 @@ Each item in the contribution is now displayed with edit and cancel icons.
 Edit opens the line item in a dialogue with the editable fields.
 ![image](https://user-images.githubusercontent.com/13468905/30990046-d7e7da56-a46d-11e7-9cf6-3f6b309df41d.png)
 
-If the total contribution amount is increased, the contribution status is changed to **Pending payment** and a popup appears reminding the user to create a payment record.
+If the total of the line item amounts is increased to more than the contribution total amount, the contribution status is changed to **Pending payment** and a popup appears reminding the user to create a payment record.
 
-If the total contribution amount in decreased, the contribution status changed to **Pending refund** and **Record refund** appears under More on the contribution record.
+If the total of the line item amounts is decreased to less than the contribution amount, the contribution status changed to **Pending refund** and **Record refund** appears under More on the contribution record.
 
-Clicking on the arrow to the left of the contribution amount or the amount link displays the history of the contribution with edits.
+On the Contribution tab of the Contact Summary Page, clicking on the arrow to the left of the contribution amount or the amount link displays the history of the contribution including those due to edits.
 
 ![image](https://user-images.githubusercontent.com/13468905/30990046-d7e7da56-a46d-11e7-9cf6-3f6b309df41d.png)
 
