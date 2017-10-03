@@ -17,6 +17,8 @@ Usage
 Each item in the contribution is now displayed with edit and cancel icons.
 ![image](https://user-images.githubusercontent.com/13468905/30987931-a62977d8-a466-11e7-91ee-8521ab13f368.png)
 
+If the contribution was created with a price set, and some of the fields options are not currently selected, then a button appears that allows you to add another line item. 
+
 Edit opens the line item in a dialogue with the editable fields.
 ![image](https://user-images.githubusercontent.com/13468905/30990046-d7e7da56-a46d-11e7-9cf6-3f6b309df41d.png)
 
