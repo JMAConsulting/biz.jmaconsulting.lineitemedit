@@ -20,7 +20,7 @@ Each item in the contribution is now displayed with edit and cancel icons.
 If the contribution was created with a price set, and some of the fields options are not currently selected, then a button appears that allows you to add another line item. 
 
 Edit opens the line item in a dialogue with the editable fields.
-![image](https://user-images.githubusercontent.com/13468905/30990046-d7e7da56-a46d-11e7-9cf6-3f6b309df41d.png)
+![image](https://user-images.githubusercontent.com/3735621/31880148-4aa437f4-b7fd-11e7-854b-48447c9d5b3f.png)
 
 If the total of the line item amounts is increased to more than the contribution total amount, the contribution status is changed to **Pending payment** and a popup appears reminding the user to create a payment record.
 
