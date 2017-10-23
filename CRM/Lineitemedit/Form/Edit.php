@@ -116,7 +116,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       ),
       array(
         'type' => 'cancel',
-        'name' => ts('Cancel'),
+        'name' => ts('Close'),
       ),
     ));
 
