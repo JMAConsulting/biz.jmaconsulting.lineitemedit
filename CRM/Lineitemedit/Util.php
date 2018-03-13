@@ -119,8 +119,8 @@ class CRM_Lineitemedit_Util {
   /**
    * Function used to format lineItem lists by appending edit and cancel item action links with label
    *
-   * @param array $lineitems
-   *   list of lineitems
+   * @param array $lineItems list of lineitems
+   * @param bool $isParticipantCount
    *
    */
   public static function formatLineItemList(&$lineItems, $isParticipantCount) {
@@ -146,7 +146,7 @@ class CRM_Lineitemedit_Util {
           if (!$isParticipantCount) {
             $lineItems[$priceSetID][$lineItemID]['participant_count'] = '';
           }
-          $lineItems[$priceSetID][$lineItemID]['participant_count'] = $lineItems[$priceSetID][$lineItemID]['participant_count'] . "</td><td>{$actionlinks}</td>" ;
+          $lineItems[$priceSetID][$lineItemID]['participant_count'] = $lineItems[$priceSetID][$lineItemID]['participant_count'] . "</td><td>{$actionlinks}</td>";
         }
       }
     }
@@ -168,7 +168,7 @@ class CRM_Lineitemedit_Util {
   /**
    * Function used to enter financial records upon addition of lineItem
    *
-   * @param int $lineItemID
+   * @param int $lineItem
    * @param CRM_Financial_DAO_FinancialTrxn $trxn
    *
    */
@@ -196,8 +196,7 @@ class CRM_Lineitemedit_Util {
 
     // create financial item for added line item
     $newFinancialItemDAO = CRM_Financial_BAO_FinancialItem::create($newFinancialItem, NULL, $trxnId);
-
-      if (!empty($lineItem['tax_amount']) && $lineItem['tax_amount'] != 0) {
+    if (!empty($lineItem['tax_amount']) && $lineItem['tax_amount'] != 0) {
       $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
       $taxFinancialItemInfo = array_merge($newFinancialItem, array(
         'amount' => $lineItem['tax_amount'],
@@ -217,26 +216,24 @@ class CRM_Lineitemedit_Util {
    *
    * @param int $contributionID
    * @param array $lineItem
+   * @param string $context
    *
    */
-   public static function createDeferredTrxn($contributionID, $lineItem, $context) {
+  public static function createDeferredTrxn($contributionID, $lineItem, $context) {
     if (CRM_Contribute_BAO_Contribution::checkContributeSettings('deferred_revenue_enabled')) {
-       $lineItem = array($contributionID => array($lineItem['id'] => $lineItem));
-       CRM_Core_BAO_FinancialTrxn::createDeferredTrxn($lineItem, $contributionID, TRUE, $context);
-     }
-   }
+      $lineItem = array($contributionID => array($lineItem['id'] => $lineItem));
+      CRM_Core_BAO_FinancialTrxn::createDeferredTrxn($lineItem, $contributionID, TRUE, $context);
+    }
+  }
 
   /**
    * Function used to enter/update financial records upon edit of lineItem
    *
    * @param int $lineItemID
-   * @param money $balanceTaxAmount
+   * @param array $previousLineItem
    *
    */
-  public static function insertFinancialItemOnEdit($lineItemID,
-    $previousLineItem
-  ) {
-
+  public static function insertFinancialItemOnEdit($lineItemID, $previousLineItem) {
     $lineItem = civicrm_api3('LineItem', 'Getsingle', array(
       'id' => $lineItemID,
     ));
@@ -284,29 +281,29 @@ class CRM_Lineitemedit_Util {
   }
 
   public static function getRelatedCancelFinancialTrxn($financialItemID) {
-       $query = "SELECT ft.*
+    $query = "SELECT ft.*
    FROM civicrm_financial_trxn ft
    INNER JOIN civicrm_entity_financial_trxn eft ON eft.financial_trxn_id = ft.id AND eft.entity_table = 'civicrm_financial_item'
    WHERE eft.entity_id = %1
    ORDER BY eft.id DESC
    LIMIT 1; ";
 
-       $dao = CRM_Core_DAO::executeQuery($query, array(1 => array($financialItemID, 'Integer')));
-       $financialTrxn = array();
-       while ($dao->fetch()) {
-         $financialTrxn = $dao->toArray();
-         unset($financialTrxn['id']);
-         $financialTrxn = array_merge($financialTrxn, array(
-           'trxn_date' => date('YmdHis'),
-           'total_amount' => -$financialTrxn['total_amount'],
-           'net_amount' => -$financialTrxn['net_amount'],
-           'entity_table' => 'civicrm_financial_item',
-           'entity_id' => $financialItemID,
-         ));
-       }
+    $dao = CRM_Core_DAO::executeQuery($query, array(1 => array($financialItemID, 'Integer')));
+    $financialTrxn = array();
+    while ($dao->fetch()) {
+      $financialTrxn = $dao->toArray();
+      unset($financialTrxn['id']);
+      $financialTrxn = array_merge($financialTrxn, array(
+        'trxn_date' => date('YmdHis'),
+        'total_amount' => -$financialTrxn['total_amount'],
+        'net_amount' => -$financialTrxn['net_amount'],
+        'entity_table' => 'civicrm_financial_item',
+        'entity_id' => $financialItemID,
+      ));
+    }
 
-       return $financialTrxn;
-     }
+    return $financialTrxn;
+  }
 
   /**
    * Function used fetch the latest Sale tax related financial item
@@ -414,13 +411,13 @@ ORDER BY  ps.id, pf.weight ;
    *   array of field names
    */
   public static function getLineitemFieldNames($isAddItem = FALSE) {
-    $fieldNames =  array(
+    $fieldNames = [
       'label',
       'financial_type_id',
       'qty',
       'unit_price',
       'line_total',
-    );
+    ];
 
     if ($isAddItem) {
       array_unshift($fieldNames, "price_field_value_id");
@@ -440,8 +437,8 @@ ORDER BY  ps.id, pf.weight ;
    *
    * @param int $updatedAmount
    * @param int $contributionId
-   * @param int $taxAmount
-   * @param money $previousTaxAmount
+   * @param money $taxAmount
+   * @param bool $createTrxn
    *
    * @return bool|\CRM_Core_BAO_FinancialTrxn
    */
@@ -547,7 +544,7 @@ ORDER BY  ps.id, pf.weight ;
   public static function cancelEntity($entityID, $entityTable) {
     switch ($entityTable) {
       case 'civicrm_membership':
-        $cancelStatusID =  CRM_Core_PseudoConstant::getKey('CRM_Member_BAO_Membership', 'status_id', 'Cancelled');
+        $cancelStatusID = CRM_Core_PseudoConstant::getKey('CRM_Member_BAO_Membership', 'status_id', 'Cancelled');
         civicrm_api3('Membership', 'create', array(
           'id' => $entityID,
           'status_id' => $cancelStatusID,
@@ -587,32 +584,33 @@ ORDER BY  ps.id, pf.weight ;
     WHERE pfv.id = %1
      ";
 
-     $dao = CRM_Core_DAO::executeQuery($sql, array(1 => array($priceFieldValueID, 'Integer')));
-     while ($dao->fetch()) {
-       $entityInfo = $dao->toArray();
-       break;
-     }
+    $dao = CRM_Core_DAO::executeQuery($sql, array(1 => array($priceFieldValueID, 'Integer')));
+    while ($dao->fetch()) {
+      $entityInfo = $dao->toArray();
+      break;
+    }
 
-     if (!empty($entityInfo['mt_id'])) {
-       $entityTable = 'civicrm_membership';
-     }
-     elseif (!$entityId) {
-       try {
-         $result = civicrm_api3('LineItem', 'getsingle', array(
-           'return' => array("entity_id", 'entity_table'),
-           'contribution_id' => $contributionID,
-	   'entity_table' => 'civicrm_participant',
-           'options' => array('limit' => 1),
-         ));
-         $entityId = $result['entity_id'];
-         $entityTable = 'civicrm_participant';
-       } catch (CiviCRM_API3_Exception $e) {
-         // do nothing.
-       }
-     }
+    if (!empty($entityInfo['mt_id'])) {
+      $entityTable = 'civicrm_membership';
+    }
+    elseif (!$entityId) {
+      try {
+        $result = civicrm_api3('LineItem', 'getsingle', array(
+          'return' => array("entity_id", 'entity_table'),
+          'contribution_id' => $contributionID,
+          'entity_table' => 'civicrm_participant',
+          'options' => array('limit' => 1),
+        ));
+        $entityId = $result['entity_id'];
+        $entityTable = 'civicrm_participant';
+      }
+      catch (CiviCRM_API3_Exception $e) {
+        // do nothing.
+      }
+    }
 
-     switch ($entityTable) {
-       case 'civicrm_membership':
+    switch ($entityTable) {
+      case 'civicrm_membership':
         $memTypeNumTerms = CRM_Utils_Array::value('m_nt', $entityInfo, 1);
         $memTypeNumTerms = $qty * $memTypeNumTerms;
         // NOTE: membership.create API already calculate membership dates
@@ -633,9 +631,9 @@ ORDER BY  ps.id, pf.weight ;
           'contribution_id' => $contributionID,
         ));
         break;
-     }
+    }
 
-     return array($entityTable, $entityID);
+    return array($entityTable, $entityID);
   }
 
   public static function recordChangeInAmount(

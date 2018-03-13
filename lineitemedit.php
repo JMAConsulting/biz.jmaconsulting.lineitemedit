@@ -13,10 +13,6 @@ function lineitemedit_civicrm_config(&$config) {
 
 /**
  * Implements hook_civicrm_xmlMenu().
- *
- * @param array $files
- *
- * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_xmlMenu
  */
 function lineitemedit_civicrm_xmlMenu(&$files) {
   _lineitemedit_civix_civicrm_xmlMenu($files);
@@ -60,15 +56,6 @@ function lineitemedit_civicrm_disable() {
 
 /**
  * Implements hook_civicrm_upgrade().
- *
- * @param $op string, the type of operation being performed; 'check' or 'enqueue'
- * @param $queue CRM_Queue_Queue, (for 'enqueue') the modifiable list of pending up upgrade tasks
- *
- * @return mixed
- *   Based on op. for 'check', returns array(boolean) (TRUE if upgrades are pending)
- *                for 'enqueue', returns void
- *
- * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_upgrade
  */
 function lineitemedit_civicrm_upgrade($op, CRM_Queue_Queue $queue = NULL) {
   return _lineitemedit_civix_civicrm_upgrade($op, $queue);
@@ -88,14 +75,6 @@ function lineitemedit_civicrm_managed(&$entities) {
 
 /**
  * Implements hook_civicrm_caseTypes().
- *
- * Generate a list of case-types.
- *
- * @param array $caseTypes
- *
- * Note: This hook only runs in CiviCRM 4.4+.
- *
- * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_caseTypes
  */
 function lineitemedit_civicrm_caseTypes(&$caseTypes) {
   _lineitemedit_civix_civicrm_caseTypes($caseTypes);
@@ -112,7 +91,7 @@ function lineitemedit_civicrm_caseTypes(&$caseTypes) {
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_caseTypes
  */
 function lineitemedit_civicrm_angularModules(&$angularModules) {
-_lineitemedit_civix_civicrm_angularModules($angularModules);
+  _lineitemedit_civix_civicrm_angularModules($angularModules);
 }
 
 /**
@@ -142,7 +121,7 @@ function lineitemedit_civicrm_buildForm($formName, &$form) {
       $templatePath = realpath(dirname(__FILE__) . "/templates");
       // dynamically insert a template block in the page
       CRM_Core_Region::instance('page-header')->add(array(
-        'template' => "CRM/Price/Form/LineItemInfo.tpl"
+        'template' => "CRM/Price/Form/LineItemInfo.tpl",
       ));
     }
     else {
@@ -183,19 +162,6 @@ function lineitemedit_civicrm_postProcess($formName, &$form) {
     }
   }
 }
-
-/**
- * Functions below this ship commented out. Uncomment as required.
- *
-
-/**
- * Implements hook_civicrm_preProcess().
- *
- * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_preProcess
- *
-function lineitemedit_civicrm_preProcess($formName, &$form) {
-
-} // */
 
 /**
  * Implements hook_civicrm_navigationMenu().

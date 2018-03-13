@@ -128,200 +128,200 @@ class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit_Framework_TestCase impleme
   }
 
   /**
-  * Create contact.
-  */
- function createContact() {
-   if (!empty($this->_contactID)) {
-     return;
-   }
-   $results = $this->callAPISuccess('Contact', 'create', array(
-     'contact_type' => 'Individual',
-     'first_name' => 'Jose',
-     'last_name' => 'Lopez'
-   ));;
-   $this->_contactID = $results['id'];
- }
-
- /**
- * Create dummy contact.
- */
-function createDummyContact() {
-  $results = $this->callAPISuccess('Contact', 'create', array(
-    'contact_type' => 'Individual',
-    'first_name' => 'Adam' . substr(sha1(rand()), 0, 7),
-    'last_name' => 'Cooper' . substr(sha1(rand()), 0, 7),
-  ));
-
-  return $results['id'];
-}
-
-   /**
    * Create contact.
    */
- function createContribution($params = array()) {
-   if (empty($this->_contactID)) {
-     $this->createContact();
-   }
+  public function createContact() {
+    if (!empty($this->_contactID)) {
+      return;
+    }
+    $results = $this->callAPISuccess('Contact', 'create', array(
+      'contact_type' => 'Individual',
+      'first_name' => 'Jose',
+      'last_name' => 'Lopez',
+    ));
+    $this->_contactID = $results['id'];
+  }
 
-   $p = array_merge(array(
-     'contact_id' => $this->_contactID,
-     'receive_date' => '2010-01-20',
-     'total_amount' => 100.00,
-     'financial_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Donation'),
-     'non_deductible_amount' => 10.00,
-     'fee_amount' => 0.00,
-     'net_amount' => 100.00,
-     'trxn_id' => 23456,
-     'invoice_id' => 78910,
-     'source' => 'SSF',
-     'contribution_status_id' => 1,
-   ), $params);
-   $contribution = $this->callAPISuccess('contribution', 'create', $p);
-   $this->_contributionID = $contribution['id'];
-   $this->_contribution = $this->callAPISuccessGetSingle('Contribution', array('id' => $this->_contributionID));
- }
+  /**
+   * Create dummy contact.
+   */
+  public function createDummyContact() {
+    $results = $this->callAPISuccess('Contact', 'create', array(
+      'contact_type' => 'Individual',
+      'first_name' => 'Adam' . substr(sha1(rand()), 0, 7),
+      'last_name' => 'Cooper' . substr(sha1(rand()), 0, 7),
+    ));
 
- protected function createPriceSet($priceFieldOptions = array()) {
-   $paramsSet['title'] = 'Price Set' . substr(sha1(rand()), 0, 7);
-   $paramsSet['name'] = CRM_Utils_String::titleToVar($paramsSet['title']);
-   $paramsSet['is_active'] = TRUE;
-   $paramsSet['financial_type_id'] = 4;
-   $paramsSet['extends'] = 2;
-   $priceSet = $this->callAPISuccess('price_set', 'create', $paramsSet);
-   $this->_priceSetID = $priceSet['id'];
+    return $results['id'];
+  }
 
-   $paramsField = array_merge(array(
-     'label' => 'Price Field',
-     'name' => CRM_Utils_String::titleToVar('Price Field'),
-     'html_type' => 'CheckBox',
-     'option_label' => array('1' => 'Price Field 1', '2' => 'Price Field 2'),
-     'option_value' => array('1' => 100, '2' => 200),
-     'option_name' => array('1' => 'Price Field 1', '2' => 'Price Field 2'),
-     'option_weight' => array('1' => 1, '2' => 2),
-     'option_amount' => array('1' => 100, '2' => 200),
-     'is_display_amounts' => 1,
-     'weight' => 1,
-     'options_per_line' => 1,
-     'is_active' => array('1' => 1, '2' => 1),
-     'price_set_id' => $this->_priceSetID,
-     'is_enter_qty' => 1,
-     'financial_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Donation'),
-   ), $priceFieldOptions);
+  /**
+   * Create contact.
+   */
+  public function createContribution($params = array()) {
+    if (empty($this->_contactID)) {
+      $this->createContact();
+    }
 
-   $priceField = CRM_Price_BAO_PriceField::create($paramsField);
-   $result = $this->callAPISuccess('PriceFieldValue', 'get', array('price_field_id' => $priceField->id));
+    $p = array_merge(array(
+      'contact_id' => $this->_contactID,
+      'receive_date' => '2010-01-20',
+      'total_amount' => 100.00,
+      'financial_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Donation'),
+      'non_deductible_amount' => 10.00,
+      'fee_amount' => 0.00,
+      'net_amount' => 100.00,
+      'trxn_id' => 23456,
+      'invoice_id' => 78910,
+      'source' => 'SSF',
+      'contribution_status_id' => 1,
+    ), $params);
+    $contribution = $this->callAPISuccess('contribution', 'create', $p);
+    $this->_contributionID = $contribution['id'];
+    $this->_contribution = $this->callAPISuccessGetSingle('Contribution', array('id' => $this->_contributionID));
+  }
 
-   $priceFieldOptions = array($priceField->id => array());
-   foreach (array_keys($result['values']) as $pfvid) {
-     $priceFieldOptions[$priceField->id][] = $pfvid;
-   }
+  protected function createPriceSet($priceFieldOptions = array()) {
+    $paramsSet['title'] = 'Price Set' . substr(sha1(rand()), 0, 7);
+    $paramsSet['name'] = CRM_Utils_String::titleToVar($paramsSet['title']);
+    $paramsSet['is_active'] = TRUE;
+    $paramsSet['financial_type_id'] = 4;
+    $paramsSet['extends'] = 2;
+    $priceSet = $this->callAPISuccess('price_set', 'create', $paramsSet);
+    $this->_priceSetID = $priceSet['id'];
 
-   return $priceFieldOptions;
- }
+    $paramsField = array_merge(array(
+      'label' => 'Price Field',
+       'name' => CRM_Utils_String::titleToVar('Price Field'),
+       'html_type' => 'CheckBox',
+       'option_label' => array('1' => 'Price Field 1', '2' => 'Price Field 2'),
+       'option_value' => array('1' => 100, '2' => 200),
+       'option_name' => array('1' => 'Price Field 1', '2' => 'Price Field 2'),
+       'option_weight' => array('1' => 1, '2' => 2),
+       'option_amount' => array('1' => 100, '2' => 200),
+       'is_display_amounts' => 1,
+       'weight' => 1,
+       'options_per_line' => 1,
+       'is_active' => array('1' => 1, '2' => 1),
+       'price_set_id' => $this->_priceSetID,
+       'is_enter_qty' => 1,
+       'financial_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Donation'),
+    ), $priceFieldOptions);
 
- public function getFinancialItemsByLineItemID($lineItemID) {
-   $result = $this->callAPISuccess('FinancialItem', 'get', array(
+    $priceField = CRM_Price_BAO_PriceField::create($paramsField);
+    $result = $this->callAPISuccess('PriceFieldValue', 'get', array('price_field_id' => $priceField->id));
+
+    $priceFieldOptions = array($priceField->id => array());
+    foreach (array_keys($result['values']) as $pfvid) {
+      $priceFieldOptions[$priceField->id][] = $pfvid;
+    }
+
+    return $priceFieldOptions;
+  }
+
+  public function getFinancialItemsByLineItemID($lineItemID) {
+    $result = $this->callAPISuccess('FinancialItem', 'get', array(
      'entity_table' => 'civicrm_line_item',
      'entity_id' => $lineItemID,
-   ));
+    ));
 
-   return array_values($result['values']);
- }
+    return array_values($result['values']);
+  }
 
- public function getFinancialItemsByContributionID($contributionID) {
-   $sql = "SELECT fi.*
-   FROM civicrm_financial_item fi
-   INNER JOIN civicrm_line_item li ON li.id = fi.entity_id AND fi.entity_table = 'civicrm_line_item'
-   WHERE li.contribution_id = {$contributionID}
-   ORDER BY fi.id ASC
-   ";
+  public function getFinancialItemsByContributionID($contributionID) {
+    $sql = "SELECT fi.*
+    FROM civicrm_financial_item fi
+    INNER JOIN civicrm_line_item li ON li.id = fi.entity_id AND fi.entity_table = 'civicrm_line_item'
+    WHERE li.contribution_id = {$contributionID}
+    ORDER BY fi.id ASC
+    ";
 
-   return CRM_Core_DAO::executeQuery($sql)->fetchAll();
- }
+    return CRM_Core_DAO::executeQuery($sql)->fetchAll();
+  }
 
- public function getFinancialTrxnsByLineItemID($lineItemID) {
-   $sql = "SELECT ft.*, li.id as lineitem_id
-   FROM civicrm_financial_trxn ft
-   INNER JOIN civicrm_entity_financial_trxn eft ON eft.financial_trxn_id = ft.id
-   INNER JOIN civicrm_line_item li ON eft.entity_id = li.contribution_id AND eft.entity_table = 'civicrm_contribution'
-   WHERE li.id = {$lineItemID}
-   ORDER BY ft.id ASC
-   ";
+  public function getFinancialTrxnsByLineItemID($lineItemID) {
+    $sql = "SELECT ft.*, li.id as lineitem_id
+    FROM civicrm_financial_trxn ft
+    INNER JOIN civicrm_entity_financial_trxn eft ON eft.financial_trxn_id = ft.id
+    INNER JOIN civicrm_line_item li ON eft.entity_id = li.contribution_id AND eft.entity_table = 'civicrm_contribution'
+    WHERE li.id = {$lineItemID}
+    ORDER BY ft.id ASC
+    ";
 
-   return CRM_Core_DAO::executeQuery($sql)->fetchAll();
- }
+    return CRM_Core_DAO::executeQuery($sql)->fetchAll();
+  }
 
- public function getFinancialTrxnsByContributionID($contributionID) {
-   $sql = "SELECT ft.*
-   FROM civicrm_financial_trxn ft
-   INNER JOIN civicrm_entity_financial_trxn eft ON eft.financial_trxn_id = ft.id
-   WHERE eft.entity_table = 'civicrm_contribution' AND eft.entity_id = {$contributionID}
-   ORDER BY ft.id ASC
-   ";
+  public function getFinancialTrxnsByContributionID($contributionID) {
+    $sql = "SELECT ft.*
+    FROM civicrm_financial_trxn ft
+    INNER JOIN civicrm_entity_financial_trxn eft ON eft.financial_trxn_id = ft.id
+    WHERE eft.entity_table = 'civicrm_contribution' AND eft.entity_id = {$contributionID}
+    ORDER BY ft.id ASC
+    ";
 
-   return CRM_Core_DAO::executeQuery($sql)->fetchAll();
- }
+    return CRM_Core_DAO::executeQuery($sql)->fetchAll();
+  }
 
- public function checkArrayEqualsByAttributes($expectedEntries, $actualEntries) {
-   foreach ($expectedEntries as $key => $expectedEntry) {
-     foreach ($expectedEntry as $attribute => $expectedValue) {
-       $this->assertEquals($actualEntries[$key][$attribute], $expectedValue, "mismatch found for $attribute attribute");
-     }
-   }
- }
+  public function checkArrayEqualsByAttributes($expectedEntries, $actualEntries) {
+    foreach ($expectedEntries as $key => $expectedEntry) {
+      foreach ($expectedEntry as $attribute => $expectedValue) {
+        $this->assertEquals($actualEntries[$key][$attribute], $expectedValue, "mismatch found for $attribute attribute");
+      }
+    }
+  }
 
- protected function createFinancialType($params = array()) {
-   $params = array_merge($params,
+  protected function createFinancialType($params = array()) {
+    $params = array_merge($params,
      array(
        'name' => 'Financial-Type -' . substr(sha1(rand()), 0, 7),
        'is_active' => 1,
      )
-   );
-   return $this->callAPISuccess('FinancialType', 'create', $params);
- }
+    );
+    return $this->callAPISuccess('FinancialType', 'create', $params);
+  }
 
- /**
-  * Add Sales Tax relation for financial type with financial account.
-  *
-  * @param int $financialTypeId
-  *
-  * @return obj
-  */
- protected function relationForFinancialTypeWithFinancialAccount($financialTypeId) {
-   $params = array(
-     'name' => 'Sales tax account ' . substr(sha1(rand()), 0, 4),
-     'financial_account_type_id' => key(CRM_Core_PseudoConstant::accountOptionValues('financial_account_type', NULL, " AND v.name LIKE 'Liability' ")),
-     'is_deductible' => 1,
-     'is_tax' => 1,
-     'tax_rate' => 10,
-     'is_active' => 1,
-   );
-   $account = CRM_Financial_BAO_FinancialAccount::add($params);
-   $entityParams = array(
-     'entity_table' => 'civicrm_financial_type',
-     'entity_id' => $financialTypeId,
-     'account_relationship' => key(CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL, " AND v.name LIKE 'Sales Tax Account is' ")),
-   );
+  /**
+   * Add Sales Tax relation for financial type with financial account.
+   *
+   * @param int $financialTypeId
+   *
+   * @return obj
+   */
+  protected function relationForFinancialTypeWithFinancialAccount($financialTypeId) {
+    $params = array(
+      'name' => 'Sales tax account ' . substr(sha1(rand()), 0, 4),
+      'financial_account_type_id' => key(CRM_Core_PseudoConstant::accountOptionValues('financial_account_type', NULL, " AND v.name LIKE 'Liability' ")),
+      'is_deductible' => 1,
+      'is_tax' => 1,
+      'tax_rate' => 10,
+      'is_active' => 1,
+    );
+    $account = CRM_Financial_BAO_FinancialAccount::add($params);
+    $entityParams = array(
+      'entity_table' => 'civicrm_financial_type',
+      'entity_id' => $financialTypeId,
+      'account_relationship' => key(CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL, " AND v.name LIKE 'Sales Tax Account is' ")),
+    );
 
-   //CRM-20313: As per unique index added in civicrm_entity_financial_account table,
-   //  first check if there's any record on basis of unique key (entity_table, account_relationship, entity_id)
-   $dao = new CRM_Financial_DAO_EntityFinancialAccount();
-   $dao->copyValues($entityParams);
-   $dao->find();
-   if ($dao->fetch()) {
-     $entityParams['id'] = $dao->id;
-   }
-   $entityParams['financial_account_id'] = $account->id;
+    //CRM-20313: As per unique index added in civicrm_entity_financial_account table,
+    //  first check if there's any record on basis of unique key (entity_table, account_relationship, entity_id)
+    $dao = new CRM_Financial_DAO_EntityFinancialAccount();
+    $dao->copyValues($entityParams);
+    $dao->find();
+    if ($dao->fetch()) {
+      $entityParams['id'] = $dao->id;
+    }
+    $entityParams['financial_account_id'] = $account->id;
 
-   return CRM_Financial_BAO_FinancialTypeAccount::add($entityParams);
- }
+    return CRM_Financial_BAO_FinancialTypeAccount::add($entityParams);
+  }
 
- /**
-  * Enable Tax and Invoicing
-  */
- protected function enableTaxAndInvoicing($params = array()) {
-   // Enable component contribute setting
-   $contributeSetting = array_merge($params,
+  /**
+   * Enable Tax and Invoicing
+   */
+  protected function enableTaxAndInvoicing($params = array()) {
+    // Enable component contribute setting
+    $contributeSetting = array_merge($params,
      array(
        'invoicing' => 1,
        'invoice_prefix' => 'INV_',
@@ -333,21 +333,21 @@ function createDummyContact() {
        'tax_term' => 'Sales Tax',
        'tax_display_settings' => 'Inclusive',
      )
-   );
-   return Civi::settings()->set('contribution_invoice_settings', $contributeSetting);
- }
+    );
+    return Civi::settings()->set('contribution_invoice_settings', $contributeSetting);
+  }
 
- /**
-  * Enable Tax and Invoicing
-  */
- protected function disableTaxAndInvoicing($params = array()) {
-   // Enable component contribute setting
-   $contributeSetting = array_merge($params,
+  /**
+   * Enable Tax and Invoicing
+   */
+  protected function disableTaxAndInvoicing($params = array()) {
+    // Enable component contribute setting
+    $contributeSetting = array_merge($params,
      array(
        'invoicing' => 0,
      )
-   );
-   return Civi::settings()->set('contribution_invoice_settings', $contributeSetting);
- }
+    );
+    return Civi::settings()->set('contribution_invoice_settings', $contributeSetting);
+  }
 
 }

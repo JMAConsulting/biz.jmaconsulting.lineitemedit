@@ -74,7 +74,7 @@ class CRM_Lineitemedit_Form_SaleTax_AddTest extends CRM_Lineitemedit_Form_BaseTe
     $this->assertEquals(110.00, $contribution['total_amount']);
 
     $form = new CRM_Lineitemedit_Form_Add();
-    $lineItemInfo = $this->callAPISuccessGetSingle('LineItem', array('contribution_id' =>$contribution['id']));
+    $lineItemInfo = $this->callAPISuccessGetSingle('LineItem', array('contribution_id' => $contribution['id']));
     $lineItemInfo['line_total'] = $lineItemInfo['unit_price'] += 100;
     $lineItemInfo['tax_amount'] += 10;
     $lineItemInfo['price_field_value_id'] = $priceFieldValues[$priceFieldID][1];

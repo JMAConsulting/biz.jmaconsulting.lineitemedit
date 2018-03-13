@@ -103,4 +103,5 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
     $this->assignFormVariables();
     $this->submit();
   }
+
 }

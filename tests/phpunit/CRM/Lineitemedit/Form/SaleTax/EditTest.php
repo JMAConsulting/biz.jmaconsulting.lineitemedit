@@ -295,4 +295,5 @@ class CRM_Lineitemedit_Form_SaleTax_EditTest extends CRM_Lineitemedit_Form_BaseT
     );
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
   }
+
 }

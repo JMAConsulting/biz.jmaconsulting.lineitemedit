@@ -105,7 +105,6 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
 
     $this->assign('taxRates', json_encode(CRM_Core_PseudoConstant::getTaxRates()));
 
-
     $this->addFormRule(array(__CLASS__, 'formRule'), $this);
 
     $this->addButtons(array(
@@ -205,4 +204,5 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     $this->assignFormVariables();
     $this->submit($params);
   }
+
 }
