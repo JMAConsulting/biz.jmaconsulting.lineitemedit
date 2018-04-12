@@ -45,7 +45,7 @@ class CRM_Lineitemedit_Form_AddTest extends CRM_Lineitemedit_Form_BaseTest {
     $params = array(
       'total_amount' => 100,
       'financial_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Donation'),
-      'receive_date' => '04/21/2015',
+      'receive_date' => date('Ymd'),
       'receive_date_time' => '11:27PM',
       'contact_id' => $contactID,
       'price_set_id' => $this->_priceSetID,
@@ -67,6 +67,15 @@ class CRM_Lineitemedit_Form_AddTest extends CRM_Lineitemedit_Form_BaseTest {
     $lineItemInfo = $this->callAPISuccessGetSingle('LineItem', array('contribution_id' => $contribution['id']));
     $lineItemInfo['line_total'] = $lineItemInfo['unit_price'] += 100;
     $lineItemInfo['price_field_value_id'] = $priceFieldValues[$priceFieldID][1];
+    $lineItemInfo['label'] = 'Price Field 2';
+    $form->testSubmit($lineItemInfo);
+
+    // Now select price option that has 0 amount
+    $form = new CRM_Lineitemedit_Form_Add();
+    $lineItemInfo = $this->callAPISuccessGetSingle('LineItem', array('contribution_id' => $contribution['id'], 'options' => ['sort' => 'id DESC', 'limit' => 1]));
+    $lineItemInfo['line_total'] = $lineItemInfo['unit_price'] = 0;
+    $lineItemInfo['price_field_value_id'] = $priceFieldValues[$priceFieldID][2];
+    $lineItemInfo['label'] = 'Price Field 3';
     $form->testSubmit($lineItemInfo);
 
     // Contribution amount and status after LineItem edit
@@ -84,8 +93,14 @@ class CRM_Lineitemedit_Form_AddTest extends CRM_Lineitemedit_Form_BaseTest {
       ),
       array(
         'contact_id' => $contactID,
-        'description' => 'Price Field 1',
+        'description' => 'Price Field 2',
         'amount' => 200.00,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid'),
+      ),
+      array(
+        'contact_id' => $contactID,
+        'description' => 'Price Field 3',
+        'amount' => 0.00,
         'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid'),
       ),
     );
@@ -103,6 +118,13 @@ class CRM_Lineitemedit_Form_AddTest extends CRM_Lineitemedit_Form_BaseTest {
       array(
         'total_amount' => 200.00,
         'net_amount' => 200.00,
+        'is_payment' => 0,
+        'payment_instrument_id' => $check,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Partially paid'),
+      ),
+      array(
+        'total_amount' => 0.00,
+        'net_amount' => 0.00,
         'is_payment' => 0,
         'payment_instrument_id' => $check,
         'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Partially paid'),
