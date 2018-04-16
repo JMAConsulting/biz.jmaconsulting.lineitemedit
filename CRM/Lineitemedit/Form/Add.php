@@ -97,9 +97,6 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
 
     $canChangeQuantity = CRM_Lineitemedit_Util::isPriceFieldSupportQtyChange($fields['price_field_value_id']);
 
-    if ($fields['line_total'] == 0) {
-      $errors['line_total'] = ts('Line Total amount should not be empty');
-    }
     if ($fields['qty'] == 0) {
       $errors['qty'] = ts('Line quantity cannot be zero');
     }
@@ -178,6 +175,10 @@ class CRM_Lineitemedit_Form_Add extends CRM_Core_Form {
     $lineItem = civicrm_api3('LineItem', 'getsingle', array('id' => $newLineItem['id']));
     // record financial item on addition of lineitem
     if ($trxn) {
+      CRM_Lineitemedit_Util::insertFinancialItemOnAdd($lineItem, $trxn);
+    }
+    elseif ($newLineItemParams['line_total'] == 0) {
+      $trxn = CRM_Lineitemedit_Util::createFinancialTrxnEntry($this->_contributionID, $newLineItemParams['line_total']);
       CRM_Lineitemedit_Util::insertFinancialItemOnAdd($lineItem, $trxn);
     }
     CRM_Core_Session::singleton()->pushUserContext(CRM_Utils_System::url(CRM_Utils_System::currentPath()));
