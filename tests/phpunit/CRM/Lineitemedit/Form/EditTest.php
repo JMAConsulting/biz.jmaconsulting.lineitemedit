@@ -256,4 +256,56 @@ class CRM_Lineitemedit_Form_EditTest extends CRM_Lineitemedit_Form_BaseTest {
     );
   }
 
+  public function testParticipantRecordOnLineItemEdit() {
+    $event = $this->eventCreate();
+    $form = $this->getFormObject('CRM_Event_Form_Participant');
+    $form->_single = TRUE;
+    $form->_contactID = $form->_contactId = $this->_contactID;
+    $form->_priceSetId = $this->_priceSetID;
+    $form->_contactIds = [];
+    $form->_eventId = $event['id'];
+    $form->_bltID = 5;
+    $form->_values['fee'] = $this->_eventFeeBlock;
+    $form->_isPaidEvent = TRUE;
+    $form->setCustomDataTypes();
+
+    $form->submit(array(
+      'register_date' => 'now',
+      'register_date_time' => '00:00:00',
+      'status_id' => 1,
+      'role_id' => 1,
+      'event_id' => $form->_eventId,
+      'amount_level' => 'Price Field 1',
+      'fee_amount' => 100,
+      'total_amount' => 100,
+      'priceSetId' => $this->_priceSetID,
+      'price_' . key($form->_values['fee']) => array(
+        key($form->_values['fee'][key($form->_values['fee'])]['options']) => 1,
+      ),
+      'record_contribution' => TRUE,
+      'financial_type_id' => 1,
+      'contribution_status_id' => 1,
+      'payment_instrument_id' => 1,
+    ));
+
+    $participantID = $this->callAPISuccess('Participant', 'get', [])['id'];
+
+    $form = new CRM_Lineitemedit_Form_Edit();
+    $updatedlineItemInfo = $this->callAPISuccessGetSingle('LineItem', array('entity_id' => $participantID, 'entity_table' => 'civicrm_participant'));
+    $updatedlineItemInfo['line_total'] = $updatedlineItemInfo['unit_price'] += 100;
+    $updatedlineItemInfo['qty'] += 1;
+    $form->testSubmit($updatedlineItemInfo);
+
+    $actualParticipantRecord = $this->callAPISuccess('Participant', 'get', ['id' => $participantID, 'sequential' => 1])['values'];
+    $expectedParticipantRecord = array(
+      array(
+        'event_id' => $event['id'],
+        'participant_fee_amount' => $updatedlineItemInfo['line_total'],
+        'participant_fee_level' => 'Price Field 1 - ' . $updatedlineItemInfo['qty'],
+        'contact_id' => $this->_contactID,
+      ),
+    );
+    $this->checkArrayEqualsByAttributes($expectedParticipantRecord, $actualParticipantRecord);
+  }
+
 }

@@ -25,6 +25,7 @@ class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit_Framework_TestCase impleme
   protected $_contribution;
   protected $_priceSetID;
   protected $_createContri = TRUE;
+  protected $_eventFeeBlock;
 
   public function setUpHeadless() {
     // Civi\Test has many helpers, like install(), uninstall(), sql(), and sqlFile().
@@ -181,13 +182,13 @@ class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit_Framework_TestCase impleme
     $this->_contribution = $this->callAPISuccessGetSingle('Contribution', array('id' => $this->_contributionID));
   }
 
-  protected function createPriceSet($priceFieldOptions = array()) {
+  protected function createPriceSet($priceFieldOptions = array(), $priceSetParams = []) {
     $paramsSet['title'] = 'Price Set' . substr(sha1(rand()), 0, 7);
     $paramsSet['name'] = CRM_Utils_String::titleToVar($paramsSet['title']);
     $paramsSet['is_active'] = TRUE;
     $paramsSet['financial_type_id'] = 4;
     $paramsSet['extends'] = 2;
-    $priceSet = $this->callAPISuccess('price_set', 'create', $paramsSet);
+    $priceSet = $this->callAPISuccess('price_set', 'create', array_merge($paramsSet, $priceSetParams));
     $this->_priceSetID = $priceSet['id'];
 
     $paramsField = array_merge(array(
@@ -348,6 +349,71 @@ class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit_Framework_TestCase impleme
      )
     );
     return Civi::settings()->set('contribution_invoice_settings', $contributeSetting);
+  }
+
+  /**
+   * Create an Event.
+   *
+   * @param array $params
+   *   Name-value pair for an event.
+   *
+   * @return array
+   */
+  public function eventCreate($params = array()) {
+    $this->createContact();
+
+    // set defaults for missing params
+    $params = array_merge(array(
+      'title' => 'Annual CiviCRM meet',
+      'summary' => 'If you have any CiviCRM related issues or want to track where CiviCRM is heading, Sign up now',
+      'description' => 'This event is intended to give brief idea about progess of CiviCRM and giving solutions to common user issues',
+      'event_type_id' => 1,
+      'is_public' => 1,
+      'start_date' => 20081021,
+      'end_date' => 20081023,
+      'is_online_registration' => 1,
+      'registration_start_date' => 20080601,
+      'registration_end_date' => 20081015,
+      'max_participants' => 100,
+      'event_full_text' => 'Sorry! We are already full',
+      'is_monetary' => 0,
+      'is_active' => 1,
+      'is_show_location' => 0,
+    ), $params);
+    $event = $this->callAPISuccess('Event', 'create', $params);
+
+    $priceSetParams = [
+      'extends' => 1,
+      'financial_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Event Fee'),
+    ];
+    $priceFieldParams = [
+      'is_enter_qty' => 0,
+      'financial_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Event Fee'),
+    ];
+    $this->createPriceSet($priceFieldParams, $priceSetParams);
+    CRM_Price_BAO_PriceSet::addTo('civicrm_event', $event['id'], $this->_priceSetID);
+    $priceSet = CRM_Price_BAO_PriceSet::getSetDetail($this->_priceSetID, TRUE, FALSE);
+    $priceSet = CRM_Utils_Array::value($this->_priceSetID, $priceSet);
+    $this->_eventFeeBlock = CRM_Utils_Array::value('fields', $priceSet);
+
+    return $event;
+  }
+
+  /**
+   * Instantiate form object.
+   *
+   * We need to instantiate the form to run preprocess, which means we have to trick it about the request method.
+   *
+   * @param string $class
+   *   Name of form class.
+   *
+   * @return \CRM_Core_Form
+   */
+  public function getFormObject($class) {
+    $form = new $class();
+    $_SERVER['REQUEST_METHOD'] = 'GET';
+    $form->controller = new CRM_Core_Controller();
+    return $form;
   }
 
 }
