@@ -91,7 +91,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
         $properties['options'] = $financialTypes;
       }
       // In case of text non-quickconfig price field we cannot change the unit price
-      elseif (($this->_priceFieldInfo['is_enter_qty'] == 1 && $fieldName == 'unit_price') || $fieldName == 'tax_amount') {
+      elseif ($fieldName == 'tax_amount') {
         $properties['readonly'] = TRUE;
         $required = FALSE;
       }
