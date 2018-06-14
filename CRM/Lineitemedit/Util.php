@@ -840,4 +840,71 @@ ORDER BY  ps.id, pf.weight ;
     return CRM_Utils_Array::value('financial_account_id', $result);
   }
 
+  public static function buildLineItemRows(&$form, $contributionID = NULL) {
+    $fields = CRM_Lineitemedit_Util::getLineitemFieldNames(TRUE);
+    $submittedValues = $pvIDs = [];
+    if (!empty($contributionID)) {
+      $options = CRM_Lineitemedit_Util::getPriceFieldLists($contributionID) + ['new' => ts('Create new item')];
+      $pvIDs = array_keys($options);
+      $form->add('select', 'add_item', ts('Add item'), ['' => '- select any price-field -'] + $options);
+    }
+    for ($rowNumber = 1; $rowNumber <= 10; $rowNumber++) {
+      if (!empty($_POST['item_unit_price']) && !empty($_POST['item_unit_price'][$rowNumber])) {
+        $submittedValues[] = $rowNumber;
+      }
+      foreach ($fields as $fieldName) {
+        if ($fieldName != 'price_field_value_id') {
+          if ($fieldName == 'line_total') {
+            $form->add('text', "item_line_total[$rowNumber]", ts('Total amount'), array(
+              'size' => 6,
+              'maxlength' => 14,
+              'readonly' => TRUE)
+            );
+            continue;
+          }
+          $properties = array(
+            'entity' => 'LineItem',
+            'name' => $fieldName,
+            'context' => 'add',
+            'action' => 'create',
+          );
+          if ($fieldName == 'financial_type_id') {
+            CRM_Financial_BAO_FinancialType::getAvailableFinancialTypes($financialTypes);
+            $properties['options'] = $financialTypes;
+          }
+          elseif ($fieldName == 'qty') {
+            $properties['size'] = 2;
+          }
+          elseif ($fieldName == 'label') {
+            $properties['size'] = 20;
+          }
+          $fieldName = sprintf("item_%s[%d]", $fieldName, $rowNumber);
+          $form->addField($fieldName, $properties);
+          if ($fieldName == "item_unit_price[$rowNumber]") {
+            $form->addRule($fieldName, ts('Please enter a monetary value for this field.'), 'money');
+          }
+          elseif ($fieldName == "item_qty[$rowNumber]") {
+            $form->addRule($fieldName, ts('Qty must be a number (with or without decimal point).'), 'numeric');
+            $form->setDefaults([$fieldName => 1.00]);
+          }
+        }
+        else {
+          $form->add('text', "item_price_field_value_id[$rowNumber]", '', ['size' => 2, 'class' => 'hiddenElement']);
+          if (count($pvIDs) > 0) {
+            $pvID = $pvIDs[key($pvIDs)];
+            $form->setDefaults(["item_price_field_value_id[$rowNumber]" => $pvID]);
+            if ($pvID != 'new') {
+              unset($pvIDs[key($pvIDs)]);
+            }
+          }
+          else {
+            $priceFieldValue = civicrm_api3('PriceFieldValue', 'get', ['name' => 'contribution_amount_' . $rowNumber]);
+            $form->setDefaults(["item_price_field_value_id[$rowNumber]" => $priceFieldValue['id']]);
+          }
+        }
+      }
+    }
+    $form->assign('lineItemSubmitted', json_encode($submittedValues));
+  }
+
 }
