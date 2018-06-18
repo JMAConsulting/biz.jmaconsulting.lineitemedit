@@ -24,34 +24,6 @@ function lineitemedit_civicrm_xmlMenu(&$files) {
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_install
  */
 function lineitemedit_civicrm_install() {
-  $priceField = civicrm_api3('PriceField',
-    'getsingle',
-    [
-      'price_set_id' => civicrm_api3('PriceSet', 'getvalue', ['name' => 'default_contribution_amount', 'return' => 'id']),
-      'options' => ['limit' => 1],
-    ]
-  );
-  $priceFieldParams = $priceField;
-  unset($priceFieldParams['id'], $priceFieldParams['name'], $priceFieldParams['weight'], $priceFieldParams['is_required']);
-  $priceFieldValue = civicrm_api3('PriceFieldValue',
-    'getsingle',
-    [
-      'price_field_id' => $priceField['id'],
-      'options' => ['limit' => 1],
-    ]
-  );
-  $priceFieldValueParams = $priceFieldValue;
-  unset($priceFieldValueParams['id'], $priceFieldValueParams['name'], $priceFieldValueParams['weight']);
-  for ($i = 1; $i <= 10; ++$i) {
-    $p = civicrm_api3('PriceField', 'create', array_merge(['label' => $priceField['label'] . " $i"],  $priceFieldParams));
-    civicrm_api3('PriceFieldValue', 'create', array_merge(
-      [
-        'label' => $priceField['label'] . " $i",
-        'price_field_id' => $p['id'],
-      ],
-      $priceFieldValueParams
-    ));
-  }
   _lineitemedit_civix_civicrm_install();
 }
 
@@ -133,6 +105,7 @@ function lineitemedit_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
 
 function lineitemedit_civicrm_buildForm($formName, &$form) {
   if ($formName == 'CRM_Contribute_Form_Contribution') {
+    $contributionID = NULL;
     if (!empty($form->_id) && ($form->_action & CRM_Core_Action::UPDATE)) {
       $contributionID = $form->_id;
       $pricesetFieldsCount = NULL;
@@ -145,10 +118,6 @@ function lineitemedit_civicrm_buildForm($formName, &$form) {
 
         // Assumes templates are in a templates folder relative to this file
         $templatePath = realpath(dirname(__FILE__) . "/templates");
-        // dynamically insert a template block in the page
-        CRM_Core_Region::instance('page-header')->add(array(
-          'template' => "CRM/Price/Form/LineItemInfo.tpl",
-        ));
       }
       else {
         $pricesetFieldsCount = CRM_Core_Smarty::singleton()->get_template_vars('pricesetFieldsCount');
@@ -156,10 +125,14 @@ function lineitemedit_civicrm_buildForm($formName, &$form) {
         $form->assign('lineItem', $form->_lineItems);
         $form->assign('pricesetFieldsCount', TRUE);
       }
-      CRM_Lineitemedit_Util::buildLineItemRows($form, $form->_id);
+      CRM_Lineitemedit_Util::buildLineItemRows($form, $contributionID);
+      // dynamically insert a template block in the page
       CRM_Core_Region::instance('page-body')->add(array(
         'template' => "CRM/Lineitemedit/Form/AddLineItems.tpl",
       ));
+      if (!empty($form->_values['total_amount'])) {
+        $form->setDefaults('total_amount', $form->_values['total_amount']);
+      }
     }
     elseif ($form->_action & CRM_Core_Action::ADD) {
       CRM_Lineitemedit_Util::buildLineItemRows($form);
@@ -195,32 +168,123 @@ function lineitemedit_civicrm_postProcess($formName, &$form) {
 }
 
 function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
-  if ($entity == 'Contribution' && $op == 'create') {
-    $lineItemParams = [];
-    for ($i = 1; $i <= 10; $i++) {
-      $lineItemParams[$i] = [];
-      $notFound = TRUE;
-      foreach (['item_label', 'item_financial_type_id', 'item_qty', 'item_unit_price', 'item_line_total', 'item_price_field_value_id'] as $attribute) {
-        if (!empty($params[$attribute]) && !empty($params[$attribute][$i])) {
-          $notFound = FALSE;
-          $lineItemParams[$i][str_replace('item_', '', $attribute)] = $params[$attribute][$i];
-          if ($attribute == 'item_price_field_value_id') {
-            $lineItemParams[$i]['price_field_id'] = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $params[$attribute][$i], 'price_field_id');
+  if ($entity == 'Contribution') {
+    if ($op == 'create') {
+      $lineItemParams = [];
+      $taxEnabled = (bool) CRM_Utils_Array::value('invoicing', Civi::settings()->get('contribution_invoice_settings'));
+      for ($i = 1; $i <= 10; $i++) {
+        $lineItemParams[$i] = [];
+        $notFound = TRUE;
+        foreach (['item_label', 'item_financial_type_id', 'item_qty', 'item_unit_price', 'item_line_total', 'item_price_field_value_id'] as $attribute) {
+          if (!empty($params[$attribute]) && !empty($params[$attribute][$i])) {
+            $notFound = FALSE;
+            $lineItemParams[$i][str_replace('item_', '', $attribute)] = $params[$attribute][$i];
+            if ($attribute == 'item_price_field_value_id') {
+              $lineItemParams[$i]['price_field_id'] = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $params[$attribute][$i], 'price_field_id');
+            }
+          }
+        }
+        if ($notFound) {
+          unset($lineItemParams[$i]);
+        }
+        else {
+          if ($taxEnabled) {
+            $lineItemParams[$i]['tax_amount'] = CRM_Utils_Array::value($i, $params['item_tax_amount'], 0.00);
+            $params['tax_amount'] += $lineItemParams[$i]['tax_amount'];
+          }
+          $params['total_amount'] = $params['net_amount'] = $params['amount'] += ($lineItemParams[$i]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItemParams[$i], 0.00));
+          if (!empty($lineItemParams[$i]['line_total']) && !empty($lineItemParams[$i]['price_field_id'])) {
+            $priceSetID = CRM_Core_DAO::getFieldValue('CRM_Price_BAO_PriceField', $lineItemParams[$i]['price_field_id'], 'price_set_id');
+            if (!empty($params['line_item'][$priceSetID])) {
+              $params['line_item'][$priceSetID][$lineItemParams[$i]['price_field_id']] = $lineItemParams[$i];
+            }
           }
         }
       }
-      if ($notFound) {
-        unset($lineItemParams[$i]);
+    }
+    elseif ($op == 'edit') {
+      $lineItemParams = $newLineItem = [];
+      for ($i = 1; $i <= 10; $i++) {
+        $lineItemParams[$i] = [];
+        $notFound = TRUE;
+        foreach (['item_label', 'item_financial_type_id', 'item_qty', 'item_unit_price', 'item_line_total', 'item_price_field_value_id', 'item_tax_amount'] as $attribute) {
+          if (!empty($params[$attribute]) && !empty($params[$attribute][$i])) {
+            if ($attribute == 'item_line_total') {
+              $notFound = FALSE;
+            }
+            $lineItemParams[$i][str_replace('item_', '', $attribute)] = $params[$attribute][$i];
+            if ($attribute == 'item_price_field_value_id') {
+              $lineItemParams[$i]['price_field_id'] = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $params[$attribute][$i], 'price_field_id');
+            }
+          }
+        }
+        if ($notFound) {
+          unset($lineItemParams[$i]);
+        }
       }
-      else {
-        $params['total_amount'] = $params['amount'] += $lineItemParams[$i]['line_total'];
-        if (!empty($lineItemParams[$i]['line_total']) && !empty($lineItemParams[$i]['price_field_id'])) {
-          $priceSetID = CRM_Core_DAO::getFieldValue('CRM_Price_BAO_PriceField', $lineItemParams[$i]['price_field_id'], 'price_set_id');
-          if (!empty($params['line_item'][$priceSetID])) {
-            $params['line_item'][$priceSetID][$lineItemParams[$i]['price_field_id']] = $lineItemParams[$i];
+
+      foreach ($lineItemParams as $key => $lineItem) {
+        if ($lineItem['price_field_value_id'] == 'new') {
+          list($lineItem['price_field_id'], $lineItem['price_field_value_id']) = CRM_Lineitemedit_Util::createPriceFieldByContributionID($entityID);
+        }
+        else {
+          $lineItem['price_field_id'] = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $lineItem['price_field_value_id'], 'price_field_id');
+        }
+        list($lineEntityTable, $lineEntityID) = CRM_Lineitemedit_Util::addEntity(
+          $lineItem['price_field_value_id'],
+          $entityID,
+          $lineItem['qty']
+        );
+
+        $newLineItemParams = array(
+          'entity_table' => $lineEntityTable,
+          'entity_id' => $lineEntityID,
+          'contribution_id' => $entityID,
+          'price_field_id' => $lineItem['price_field_id'],
+          'label' => $lineItem['label'],
+          'qty' => $lineItem['qty'],
+          'unit_price' => CRM_Utils_Rule::cleanMoney($lineItem['unit_price']),
+          'line_total' => CRM_Utils_Rule::cleanMoney($lineItem['line_total']),
+          'price_field_value_id' => $lineItem['price_field_value_id'],
+          'financial_type_id' => $lineItem['financial_type_id'],
+          'tax_amount' => CRM_Utils_Array::value('tax_amount', $lineitem),
+        );
+        $newLineItem[] = civicrm_api3('LineItem', 'create', $newLineItemParams)['id'];
+      }
+
+      if (!empty($lineItemParams)) {
+        // calculate balance, tax and paidamount later used to adjust transaction
+        $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($entityID);
+        $taxAmount = CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($entityID);
+
+        // Record adjusted amount by updating contribution info and create necessary financial trxns
+        list($trxn, $contriParams) = CRM_Lineitemedit_Util::recordAdjustedAmt(
+          $updatedAmount,
+          $entityID,
+          $taxAmount,
+          TRUE, TRUE
+        );
+        CRM_Core_BAO_Cache::setItem($contriParams, 'lineitem-editor', $entityID);
+
+        // record financial item on addition of lineitem
+        if ($trxn) {
+          foreach ($newLineItem as $lineItemID) {
+            $lineItem = civicrm_api3('LineItem', 'getsingle', array('id' => $lineItemID));
+            CRM_Lineitemedit_Util::insertFinancialItemOnAdd($lineItem, $trxn);
           }
         }
       }
+    }
+  }
+}
+
+function lineitemedit_civicrm_post($op, $entity, $entityID, &$obj) {
+  if ($entity == 'Contribution' && $op == 'edit') {
+    $contriParams = CRM_Core_BAO_Cache::getItem('lineitem-editor', $entityID);
+    if (!empty($contriParams)) {
+      $obj->copyValues($contriParams);
+      $obj->save();
+      CRM_Core_BAO_Cache::deleteGroup('lineitem-editor', $entityID);
     }
   }
 }
