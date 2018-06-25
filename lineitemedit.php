@@ -125,17 +125,13 @@ function lineitemedit_civicrm_buildForm($formName, &$form) {
         $form->assign('lineItem', $form->_lineItems);
         $form->assign('pricesetFieldsCount', TRUE);
       }
-      CRM_Lineitemedit_Util::buildLineItemRows($form, $contributionID);
-      // dynamically insert a template block in the page
-      CRM_Core_Region::instance('page-body')->add(array(
-        'template' => "CRM/Lineitemedit/Form/AddLineItems.tpl",
-      ));
       if (!empty($form->_values['total_amount'])) {
         $form->setDefaults('total_amount', $form->_values['total_amount']);
       }
     }
-    elseif ($form->_action & CRM_Core_Action::ADD) {
-      CRM_Lineitemedit_Util::buildLineItemRows($form);
+
+    if (!($form->_action & CRM_Core_Action::DELETE)) {
+      CRM_Lineitemedit_Util::buildLineItemRows($form, $contributionID);
       CRM_Core_Region::instance('page-body')->add(array(
         'template' => "CRM/Lineitemedit/Form/AddLineItems.tpl",
       ));
@@ -169,6 +165,7 @@ function lineitemedit_civicrm_postProcess($formName, &$form) {
 
 function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
   if ($entity == 'Contribution') {
+    CRM_Core_Error::debug_var('p', $params);
     if ($op == 'create' && empty($params['price_set_id'])) {
       $lineItemParams = [];
       $taxEnabled = (bool) CRM_Utils_Array::value('invoicing', Civi::settings()->get('contribution_invoice_settings'));
