@@ -169,15 +169,18 @@ function lineitemedit_civicrm_postProcess($formName, &$form) {
 
 function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
   if ($entity == 'Contribution') {
-    if ($op == 'create') {
+    if ($op == 'create' && empty($params['price_set_id'])) {
       $lineItemParams = [];
       $taxEnabled = (bool) CRM_Utils_Array::value('invoicing', Civi::settings()->get('contribution_invoice_settings'));
-      for ($i = 1; $i <= 10; $i++) {
+      for ($i = 0; $i <= 10; $i++) {
         $lineItemParams[$i] = [];
         $notFound = TRUE;
         foreach (['item_label', 'item_financial_type_id', 'item_qty', 'item_unit_price', 'item_line_total', 'item_price_field_value_id'] as $attribute) {
           if (!empty($params[$attribute]) && !empty($params[$attribute][$i])) {
             $notFound = FALSE;
+            if (in_array($attribute, ['item_line_total', 'item_unit_price'])) {
+              $params[$attribute][$i] = CRM_Utils_Rule::cleanMoney($params[$attribute][$i]);
+            }
             $lineItemParams[$i][str_replace('item_', '', $attribute)] = $params[$attribute][$i];
             if ($attribute == 'item_price_field_value_id') {
               $lineItemParams[$i]['price_field_id'] = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $params[$attribute][$i], 'price_field_id');
@@ -192,7 +195,7 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
             $lineItemParams[$i]['tax_amount'] = CRM_Utils_Array::value($i, $params['item_tax_amount'], 0.00);
             $params['tax_amount'] += $lineItemParams[$i]['tax_amount'];
           }
-          $params['total_amount'] = $params['net_amount'] = $params['amount'] += ($lineItemParams[$i]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItemParams[$i], 0.00));
+          $params['total_amount'] = $params['net_amount'] = $params['amount'] += (CRM_Utils_Array::value('line_total', $lineItemParams[$i], 0.00) + CRM_Utils_Array::value('tax_amount', $lineItemParams[$i], 0.00));
           if (!empty($lineItemParams[$i]['line_total']) && !empty($lineItemParams[$i]['price_field_id'])) {
             $priceSetID = CRM_Core_DAO::getFieldValue('CRM_Price_BAO_PriceField', $lineItemParams[$i]['price_field_id'], 'price_set_id');
             if (!empty($params['line_item'][$priceSetID])) {
@@ -204,7 +207,7 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
     }
     elseif ($op == 'edit') {
       $lineItemParams = $newLineItem = [];
-      for ($i = 1; $i <= 10; $i++) {
+      for ($i = 0; $i <= 10; $i++) {
         $lineItemParams[$i] = [];
         $notFound = TRUE;
         foreach (['item_label', 'item_financial_type_id', 'item_qty', 'item_unit_price', 'item_line_total', 'item_price_field_value_id', 'item_tax_amount'] as $attribute) {

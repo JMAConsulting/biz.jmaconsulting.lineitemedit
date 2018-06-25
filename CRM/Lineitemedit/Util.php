@@ -54,7 +54,7 @@ class CRM_Lineitemedit_Util {
       );
 
       $actionLinks = $links;
-      if ($lineItem['qty'] == 0) {
+      if ($lineItem['qty'] == 0 || $lineItem['line_total'] == 0) {
         unset($actionLinks[CRM_Core_Action::DELETE]);
       }
       $lineItemTable['rows'][$key] = array(
@@ -861,7 +861,7 @@ ORDER BY  ps.id, pf.weight ;
       $pvIDs = array_keys($options);
       $form->add('select', 'add_item', ts('Add item'), ['' => '- select any price-field -'] + $options);
     }
-    for ($rowNumber = 1; $rowNumber <= 10; $rowNumber++) {
+    for ($rowNumber = 0; $rowNumber <= 10; $rowNumber++) {
       if (!empty($_POST['item_unit_price']) && !empty($_POST['item_unit_price'][$rowNumber])) {
         $submittedValues[] = $rowNumber;
       }
@@ -911,7 +911,12 @@ ORDER BY  ps.id, pf.weight ;
             }
           }
           else {
-            $priceFieldValue = civicrm_api3('PriceFieldValue', 'get', ['name' => 'additional_item_' . $rowNumber]);
+            if ($rowNumber == 0) {
+              $priceFieldValue = civicrm_api3('PriceFieldValue', 'get', ['name' => 'contribution_amount']);
+            }
+            else {
+              $priceFieldValue = civicrm_api3('PriceFieldValue', 'get', ['name' => 'additional_item_' . $rowNumber]);
+            }
             $form->setDefaults(["item_price_field_value_id[$rowNumber]" => $priceFieldValue['id']]);
           }
         }

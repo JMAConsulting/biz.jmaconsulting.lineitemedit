@@ -8,6 +8,9 @@
   {/if}
 </span>
 <div id="lineitem-add-block" class="status">
+  {if $action eq 1}
+    <span id='choose-manual'><a href=# class="action-item crm-hover-button">{ts}Choose manual contribution amount{/ts}</a></span>
+  {/if}
 <table id='info'>
   <tr class="line-item-columnheader">
     <th>{ts}Item{/ts}</th>
@@ -31,7 +34,7 @@
       </tr>
     {/foreach}
   {/if}
-  {section name='i' start=1 loop=10}
+  {section name='i' start=0 loop=10}
     {assign var='rowNumber' value=$smarty.section.i.index}
     <tr id="add-item-row-{$rowNumber}" class="line-item-row hiddenElement">
       <td>{$form.item_label.$rowNumber.html}</td>
@@ -56,11 +59,22 @@ CRM.$(function($) {
   calculateTotalAmount();
   var isSubmitted = false;
   var submittedRows = $.parseJSON('{/literal}{$lineItemSubmitted}{literal}');
+  var action = '{/literal}{$action}{literal}';
+
+  // after form rule validation when page reloads then show only those line-item which were chosen and hide others
   $.each(submittedRows, function(e, num) {
     isSubmitted = true;
     $('#add-item-row-' + num).removeClass('hiddenElement');
   });
 
+  // if you choose manual amount, then hide all other option and line-item add block
+  $('#choose-manual').on('click', function() {
+    $('.crm-contribution-form-block-financial_type_id, #totalAmount, #totalAmountORaddLineitem, #totalAmountORPriceSet, #price_set_id').show();
+    $('#lineitem-add-block').hide();
+    reset();
+  });
+
+  // if total amount element is present which is on edit contribution form, when contribution is not done by using price set then append and show necessary links
   if ($('input[id="total_amount"]').length) {
     $('#totalAmountORaddLineitem').insertAfter('#totalAmount');
     $('#lineitem-add-block').insertBefore('#totalAmountBlock').css('display', ((isSubmitted || $('.lineitem-info-row').length) ? 'block' : 'none'));
@@ -83,6 +97,10 @@ CRM.$(function($) {
       var row = $('#lineitem-add-block tr.hiddenElement:first');
       $('tr.hiddenElement:first, #lineitem-add-block').show().removeClass('hiddenElement');
       fillLineItemRow($('input[id^="item_price_field_value_id"]', row).val(), row);
+      if (action == 1) {
+        $('.crm-contribution-form-block-financial_type_id, #totalAmount, #totalAmountORaddLineitem, #totalAmountORPriceSet, #price_set_id').hide();
+        $( "#total_amount").val('');
+      }
     }
     else {
       $('#add-another-item').hide();
@@ -133,14 +151,15 @@ CRM.$(function($) {
   $('input[id="total_amount"]', $form).on('change', calculateTotalAmount);
 
   function calculateTotalAmount() {
-    var total_amount = parseFloat(($('input[id="total_amount"]').val() || 0)) + (isNaN(parseFloat('{/literal}{$totalTaxAmount}{literal}')) ? 0 : parseFloat('{/literal}{$totalTaxAmount}{literal}'));
+    var thousandMarker = "{/literal}{$config->monetaryThousandSeparator}{literal}";
+    var total_amount = parseFloat(($('input[id="total_amount"]').val().replace(thousandMarker,'') || 0)) + (isNaN(parseFloat('{/literal}{$totalTaxAmount}{literal}')) ? 0 : parseFloat('{/literal}{$totalTaxAmount}{literal}'));
     if (!($('input[id="total_amount"]').length)) {
       total_amount = total_amount + (isNaN(parseFloat('{/literal}{$totalAmount}{literal}')) ? 0 : parseFloat('{/literal}{$totalAmount}{literal}'));
     }
     $.each($('.line-item-row'), function() {
-      total_amount += parseFloat(($('input[id^="item_line_total_"]', this).val() || 0));
+      total_amount += parseFloat(($('input[id^="item_line_total_"]', this).val().replace(thousandMarker,'') || 0));
       if ($('input[id^="item_tax_amount"]', this).length) {
-        total_amount += parseFloat(($('input[id^="item_tax_amount"]', this).val() || 0));
+        total_amount += parseFloat(($('input[id^="item_tax_amount"]', this).val().replace(thousandMarker,'') || 0));
       }
     });
     $('#line-total').text(CRM.formatMoney(total_amount));
@@ -165,6 +184,9 @@ CRM.$(function($) {
     }
     else {
       CRM.api3('PriceFieldValue', 'getsingle', {"id": pvid}).done(function(result) {
+        if ($('#financial_type_id').length && result.name == 'contribution_amount') {
+          $('#financial_type_id').val(result.financial_type_id);
+        }
         $('input[id^="item_label"]', row).val(result.label);
         $('select[id^="item_financial_type_id"]', row).select2('val', result.financial_type_id);
         $('input[id^="item_qty"]', row).val(1);
@@ -188,6 +210,20 @@ CRM.$(function($) {
       tax_amount = (tax_rates[financial_type_id] / 100 ) * line_total;
     }
     return tax_amount;
+  }
+
+  function reset() {
+    $.each($('.line-item-row'), function() {
+      var row = $(this);
+      if (!(row.hasClass('hiddenElement'))) {
+        $('input[id^="item_label"]', row).val('');
+        $('select[id^="item_financial_type_id"]', row).select2('val', '');
+        $('input[id^="item_qty"]', row).val('');
+        $('input[id^="item_unit_price"], input[id^="item_line_total"], input[id^="item_tax_amount"]', row).val('');
+        row.addClass('hiddenElement').hide();
+      }
+    });
+    calculateTotalAmount();
   }
 
 });
