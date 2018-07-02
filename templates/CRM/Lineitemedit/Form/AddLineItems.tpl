@@ -99,7 +99,7 @@ CRM.$(function($) {
       fillLineItemRow($('input[id^="item_price_field_value_id"]', row).val(), row);
       if (action == 1) {
         $('.crm-contribution-form-block-financial_type_id, #totalAmount, #totalAmountORaddLineitem, #totalAmountORPriceSet, #price_set_id').hide();
-        $( "#total_amount").val('');
+        $( "#total_amount").val(0);
       }
     }
     else {

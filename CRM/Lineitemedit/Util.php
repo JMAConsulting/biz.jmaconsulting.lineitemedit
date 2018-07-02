@@ -59,7 +59,7 @@ class CRM_Lineitemedit_Util {
       }
       $lineItemTable['rows'][$key] = array(
         'id' => $lineItem['id'],
-        'item' => $lineItem['label'],
+        'item' => CRM_Utils_Array::value('label', $lineItem),
         'financial_type' => CRM_Core_PseudoConstant::getLabel('CRM_Contribute_BAO_Contribution', 'financial_type_id', $lineItem['financial_type_id']),
         'qty' => $lineItem['qty'],
         'unit_price' => $lineItem['unit_price'],

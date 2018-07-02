@@ -165,7 +165,6 @@ function lineitemedit_civicrm_postProcess($formName, &$form) {
 
 function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
   if ($entity == 'Contribution') {
-    CRM_Core_Error::debug_var('p', $params);
     if ($op == 'create' && empty($params['price_set_id'])) {
       $lineItemParams = [];
       $taxEnabled = (bool) CRM_Utils_Array::value('invoicing', Civi::settings()->get('contribution_invoice_settings'));
@@ -274,6 +273,9 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
           }
         }
       }
+
+      // we are already processing line-items above so no need to create/update them again via create()
+      $params['skipLineItem'] = TRUE;
     }
   }
 }
