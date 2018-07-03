@@ -62,7 +62,7 @@ CRM.$(function($) {
   action = '{/literal}{$action}{literal}'
   isNotQuickConfig = '{/literal}{$pricesetFieldsCount}{literal}';
 
-  if (!isNotQuickConfig) {
+  if (!isNotQuickConfig && action == 2) {
     $('#totalAmountORaddLineitem, #add_item').hide();
   }
 
