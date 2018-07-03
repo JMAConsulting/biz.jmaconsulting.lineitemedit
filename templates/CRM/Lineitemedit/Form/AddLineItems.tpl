@@ -57,9 +57,14 @@
 <script type="text/javascript">
 CRM.$(function($) {
   calculateTotalAmount();
-  var isSubmitted = false;
-  var submittedRows = $.parseJSON('{/literal}{$lineItemSubmitted}{literal}');
-  var action = '{/literal}{$action}{literal}';
+  var isSubmitted = false,
+  submittedRows = $.parseJSON('{/literal}{$lineItemSubmitted}{literal}'),
+  action = '{/literal}{$action}{literal}'
+  isNotQuickConfig = '{/literal}{$pricesetFieldsCount}{literal}';
+
+  if (!isNotQuickConfig) {
+    $('#totalAmountORaddLineitem, #add_item').hide();
+  }
 
   // after form rule validation when page reloads then show only those line-item which were chosen and hide others
   $.each(submittedRows, function(e, num) {
@@ -70,7 +75,6 @@ CRM.$(function($) {
   // if you choose manual amount, then hide all other option and line-item add block
   $('#choose-manual').on('click', function() {
     $('.crm-contribution-form-block-financial_type_id, #totalAmount, #totalAmountORaddLineitem, #totalAmountORPriceSet, #price_set_id').show();
-    $('#lineitem-add-block').hide();
     reset();
   });
 
@@ -114,12 +118,15 @@ CRM.$(function($) {
         var row = this;
         var pvid = $('input[id^="item_price_field_value_id"]', this).val();
         if (pvid == val && !found && $(this).hasClass('hiddenElement')) {
-          $(this).removeClass('hiddenElement');
+          $(this).removeClass('hiddenElement').show();
           $('#lineitem-add-block').css('display', 'block');
           found = true;
           fillLineItemRow(pvid, row);
         }
       });
+    }
+    else {
+      reset();
     }
   });
 
@@ -152,8 +159,11 @@ CRM.$(function($) {
 
   function calculateTotalAmount() {
     var thousandMarker = "{/literal}{$config->monetaryThousandSeparator}{literal}";
-    var total_amount = parseFloat(($('input[id="total_amount"]').val().replace(thousandMarker,'') || 0)) + (isNaN(parseFloat('{/literal}{$totalTaxAmount}{literal}')) ? 0 : parseFloat('{/literal}{$totalTaxAmount}{literal}'));
-    if (!($('input[id="total_amount"]').length)) {
+    var total_amount = (isNaN(parseFloat('{/literal}{$totalTaxAmount}{literal}')) ? 0 : parseFloat('{/literal}{$totalTaxAmount}{literal}'));
+    if ($('input[id="total_amount"]').length) {
+      total_amount = total_amount +  parseFloat(($('input[id="total_amount"]').val().replace(thousandMarker,'') || 0));
+    }
+    else {
       total_amount = total_amount + (isNaN(parseFloat('{/literal}{$totalAmount}{literal}')) ? 0 : parseFloat('{/literal}{$totalAmount}{literal}'));
     }
     $.each($('.line-item-row'), function() {
@@ -213,6 +223,7 @@ CRM.$(function($) {
   }
 
   function reset() {
+    $('#lineitem-add-block').hide();
     $.each($('.line-item-row'), function() {
       var row = $(this);
       if (!(row.hasClass('hiddenElement'))) {
