@@ -48,23 +48,23 @@ class CRM_Lineitemedit_Util {
       $permissions[] = CRM_Core_Permission::DELETE;
     }
     $mask = CRM_Core_Action::mask($permissions);
-
     foreach ($lineItems as $key => $lineItem) {
       $actions = array(
         'id' => $lineItem['id'],
       );
 
       $actionLinks = $links;
-      if ($lineItem['qty'] == 0) {
+      if ($lineItem['qty'] == 0 || $lineItem['line_total'] == 0) {
         unset($actionLinks[CRM_Core_Action::DELETE]);
       }
       $lineItemTable['rows'][$key] = array(
         'id' => $lineItem['id'],
-        'item' => $lineItem['label'],
+        'item' => CRM_Utils_Array::value('label', $lineItem),
         'financial_type' => CRM_Core_PseudoConstant::getLabel('CRM_Contribute_BAO_Contribution', 'financial_type_id', $lineItem['financial_type_id']),
         'qty' => $lineItem['qty'],
         'unit_price' => $lineItem['unit_price'],
         'total_price' => $lineItem['line_total'],
+        'tax_amount' => CRM_Utils_Array::value('tax_amount', $lineItem, 0.00),
         'currency' => $order['currency'],
         'actions' => CRM_Core_Action::formLink($actionLinks, $mask, $actions),
       );
@@ -439,10 +439,11 @@ ORDER BY  ps.id, pf.weight ;
    * @param int $contributionId
    * @param money $taxAmount
    * @param bool $createTrxn
+   * @param bool $return
    *
    * @return bool|\CRM_Core_BAO_FinancialTrxn
    */
-  public static function recordAdjustedAmt($updatedAmount, $contributionId, $taxAmount = NULL, $createTrxn = TRUE) {
+  public static function recordAdjustedAmt($updatedAmount, $contributionId, $taxAmount = NULL, $createTrxn = TRUE, $return = FALSE) {
     $contribution = civicrm_api3('Contribution', 'getsingle', array(
       'return' => array("total_amount"),
       'id' => $contributionId,
@@ -486,11 +487,11 @@ ORDER BY  ps.id, pf.weight ;
 
       // update contribution status and total amount without trigger financial code
       // as this is handled in current BAO function used for change selection
-      $updatedContributionDAO->id = $contributionId;
+      $contriParams = ['id' => $contributionId];
       if (!$skip) {
-        $updatedContributionDAO->contribution_status_id = array_search($contributionStatusVal, $contributionStatuses);
+        $contriParams['contribution_status_id'] = array_search($contributionStatusVal, $contributionStatuses);
         if ($contributionStatusVal == 'Pending') {
-          $updatedContributionDAO->is_pay_later = TRUE;
+          $contriParams['is_pay_later'] = TRUE;
         }
       }
       $updatedContribution = civicrm_api3(
@@ -501,17 +502,22 @@ ORDER BY  ps.id, pf.weight ;
           'return' => array('fee_amount'),
         )
       );
-      $updatedContributionDAO->total_amount = $updatedAmount;
-      $updatedContributionDAO->net_amount = $updatedAmount - CRM_Utils_Array::value('fee_amount', $updatedContribution, 0);
+      $contriParams['total_amount'] = $updatedAmount;
+      $contriParams['net_amount'] = $updatedAmount - CRM_Utils_Array::value('fee_amount', $updatedContribution, 0);
       if ($taxAmount) {
-        $updatedContributionDAO->tax_amount = $taxAmount;
+        $contriParams['tax_amount'] = $taxAmount;
       }
+      $updatedContributionDAO->copyValues($contriParams);
       $updatedContributionDAO->save();
 
       if (!$createTrxn) {
         return NULL;
       }
       $adjustedTrxn = self::createFinancialTrxnEntry($contributionId, $balanceAmt);
+    }
+
+    if ($return) {
+      return [$adjustedTrxn, $contriParams];
     }
 
     return $adjustedTrxn;
@@ -572,7 +578,7 @@ ORDER BY  ps.id, pf.weight ;
    *
    * @return array
    */
-  public static function addEntity($priceFieldValueID, $contributionID, $qty, $entityId) {
+  public static function addEntity($priceFieldValueID, $contributionID, $qty, $entityId = NULL) {
     $entityInfo = $eventID = NULL;
     $entityTable = 'civicrm_contribution';
     $entityID = $contributionID;
@@ -838,6 +844,159 @@ ORDER BY  ps.id, pf.weight ;
     $result = array();
     CRM_Financial_BAO_FinancialTypeAccount::retrieve($searchParams, $result);
     return CRM_Utils_Array::value('financial_account_id', $result);
+  }
+
+  /**
+   * Build lineitem rows and assign other form variables
+   *
+   * @param CRM_Contribute_Form_Contribution $form
+   * @param int $contributionID
+   *
+   */
+  public static function buildLineItemRows(&$form, $contributionID = NULL) {
+    $fields = CRM_Lineitemedit_Util::getLineitemFieldNames(TRUE);
+    $submittedValues = $pvIDs = [];
+    if (!empty($contributionID)) {
+      $options = CRM_Lineitemedit_Util::getPriceFieldLists($contributionID) + ['new' => ts('Create new item')];
+      $pvIDs = array_keys($options);
+      $form->add('select', 'add_item', ts('Add item'), ['' => '- select any price-field -'] + $options);
+    }
+    for ($rowNumber = 0; $rowNumber <= 10; $rowNumber++) {
+      if (!empty($_POST['item_unit_price']) && !empty($_POST['item_unit_price'][$rowNumber])) {
+        $submittedValues[] = $rowNumber;
+      }
+      foreach ($fields as $fieldName) {
+        if ($fieldName != 'price_field_value_id') {
+          if (in_array($fieldName, ['line_total', 'tax_amount'])) {
+            $form->add('text', "item_{$fieldName}[$rowNumber]", NULL, array(
+              'size' => 6,
+              'maxlength' => 14,
+              'readonly' => TRUE)
+            );
+            continue;
+          }
+          $properties = array(
+            'entity' => 'LineItem',
+            'name' => $fieldName,
+            'context' => 'add',
+            'action' => 'create',
+          );
+          if ($fieldName == 'financial_type_id') {
+            CRM_Financial_BAO_FinancialType::getAvailableFinancialTypes($financialTypes);
+            $properties['options'] = $financialTypes;
+          }
+          elseif ($fieldName == 'qty') {
+            $properties['size'] = 2;
+          }
+          elseif ($fieldName == 'label') {
+            $properties['size'] = 20;
+          }
+          $fieldName = sprintf("item_%s[%d]", $fieldName, $rowNumber);
+          $form->addField($fieldName, $properties);
+          if ($fieldName == "item_unit_price[$rowNumber]") {
+            $form->addRule($fieldName, ts('Please enter a monetary value for this field.'), 'money');
+          }
+          elseif ($fieldName == "item_qty[$rowNumber]") {
+            $form->addRule($fieldName, ts('Qty must be a number (with or without decimal point).'), 'numeric');
+            $form->setDefaults([$fieldName => 1.00]);
+          }
+        }
+        else {
+          $form->add('text', "item_price_field_value_id[$rowNumber]", '', ['size' => 2, 'class' => 'hiddenElement']);
+          if (count($pvIDs) > 0) {
+            $pvID = $pvIDs[key($pvIDs)];
+            $form->setDefaults(["item_price_field_value_id[$rowNumber]" => $pvID]);
+            if ($pvID != 'new') {
+              unset($pvIDs[key($pvIDs)]);
+            }
+          }
+          else {
+            if ($rowNumber == 0) {
+              $priceFieldValue = civicrm_api3('PriceFieldValue', 'get', ['name' => 'contribution_amount']);
+            }
+            else {
+              $priceFieldValue = civicrm_api3('PriceFieldValue', 'get', ['name' => 'additional_item_' . $rowNumber]);
+            }
+            $form->setDefaults(["item_price_field_value_id[$rowNumber]" => $priceFieldValue['id']]);
+          }
+        }
+      }
+    }
+    $contributeSettings = Civi::settings()->get('contribution_invoice_settings');
+    $form->assign('taxEnabled', (!empty($contributeSettings['invoicing'])));
+    $form->assign('taxRates', json_encode(CRM_Core_PseudoConstant::getTaxRates()));
+    $form->assign('lineItemSubmitted', json_encode($submittedValues));
+    $form->assign('currency', CRM_Core_DAO::getFieldValue(
+      'CRM_Financial_DAO_Currency',
+      ($contributionID ? CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $contributionID, 'currency') : CRM_Core_Config::singleton()->defaultCurrency),
+      'symbol',
+      'name'
+    ));
+  }
+
+  /**
+   * Build lineitem rows and assign other form variables
+   *
+   * @param int $contributionID
+   *
+   */
+  public static function createPriceFieldByContributionID($contributionID) {
+    $previousLineItem = civicrm_api3('LineItem', 'getsingle', [
+      'contribution_id' => $contributionID,
+      'options' => ['limit' => 1],
+    ]);
+
+    $priceSetID = civicrm_api3('PriceField', 'getvalue', ['id' => $previousLineItem['price_field_id'], 'return' => 'price_set_id']);
+    $totalPF = civicrm_api3('PriceField', 'getcount', ['price_set_id' => $priceSetID]);
+
+    $newPriceField = civicrm_api3('PriceField', 'create', [
+      'label' => ts('Additional Lineitem ' . $totalPF),
+      'price_set_id' => $priceSetID,
+      'html_type' => "Text",
+      'is_enter_qty' => FALSE,
+      'is_required' => FALSE,
+      'visibility_id' => "admin",
+    ]);
+
+    $newPriceFieldValue = civicrm_api3('PriceFieldValue', 'create', [
+      'label' => ts('Additional Lineitem ' . $totalPF),
+      'price_field_id' => $newPriceField['id'],
+      'amount' => 1.00,
+      'financial_type_id' => civicrm_api3('PriceFieldValue', 'getvalue', ['id' => $previousLineItem['price_field_value_id'], 'return' => 'financial_type_id']),
+    ]);
+
+    return [$newPriceField['id'], $newPriceFieldValue['id']];
+  }
+
+  public static function generatePriceField() {
+    $priceField = civicrm_api3('PriceField',
+      'getsingle',
+      [
+        'price_set_id' => civicrm_api3('PriceSet', 'getvalue', ['name' => 'default_contribution_amount', 'return' => 'id']),
+        'options' => ['limit' => 1],
+      ]
+    );
+    $priceFieldParams = $priceField;
+    unset($priceFieldParams['id'], $priceFieldParams['name'], $priceFieldParams['weight'], $priceFieldParams['is_required']);
+    $priceFieldValue = civicrm_api3('PriceFieldValue',
+      'getsingle',
+      [
+        'price_field_id' => $priceField['id'],
+        'options' => ['limit' => 1],
+      ]
+    );
+    $priceFieldValueParams = $priceFieldValue;
+    unset($priceFieldValueParams['id'], $priceFieldValueParams['name'], $priceFieldValueParams['weight']);
+    for ($i = 1; $i <= 10; ++$i) {
+      $p = civicrm_api3('PriceField', 'create', array_merge($priceFieldParams, ['label' => ts('Additional Line Item') . " $i"]));
+      civicrm_api3('PriceFieldValue', 'create', array_merge(
+        $priceFieldValueParams,
+        [
+          'label' => ts('Additional Item') . " $i",
+          'price_field_id' => $p['id'],
+        ]
+      ));
+    }
   }
 
 }
