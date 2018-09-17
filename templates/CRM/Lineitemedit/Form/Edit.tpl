@@ -1,7 +1,7 @@
 {* HEADER *}
 
 {foreach from=$fieldNames item=fieldName}
-<div class="crm-section">
+<div class="crm-section" {if $fieldName == 'tax_amount'}id="crm-section-tax-amount"{/if} {if $fieldName == 'tax_amount' and not $isTaxEnabled}style="display: none;"{/if}>
     <div class="label">{$form.$fieldName.label}</div>
     <div class="content">
       {if in_array($fieldName, array('unit_price', 'line_total', 'tax_amount'))}

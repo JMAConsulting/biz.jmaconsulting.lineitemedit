@@ -28,7 +28,18 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     $this->assignFormVariables();
   }
 
+  /**
+   * Check if there is tax value for selected financial type.
+   * @param $financialTypeId
+   * @return bool
+   */
+  private function isTaxEnabledInFinancialType($financialTypeId) {
+    $taxRates = CRM_Core_PseudoConstant::getTaxRates();
+    return (isset($taxRates[$financialTypeId])) ? TRUE : FALSE;
+  }
+
   public function assignFormVariables($params = []) {
+
     $this->_lineitemInfo = civicrm_api3('lineItem', 'getsingle', array('id' => $this->_id));
     $this->_lineitemInfo['tax_amount'] = CRM_Utils_Array::value('tax_amount', $this->_lineitemInfo, 0.00);
     foreach (CRM_Lineitemedit_Util::getLineitemFieldNames() as $attribute) {
@@ -105,6 +116,8 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
 
     $this->assign('taxRates', json_encode(CRM_Core_PseudoConstant::getTaxRates()));
 
+    $this->assign('isTaxEnabled', $this->isTaxEnabledInFinancialType($this->_values['financial_type_id']));
+
     $this->addFormRule(array(__CLASS__, 'formRule'), $this);
 
     $this->addButtons(array(
@@ -148,6 +161,10 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       $this->_lineitemInfo['contribution_id'],
       'contact_id'
     );
+
+    if (!$this->isTaxEnabledInFinancialType($values['financial_type_id'])) {
+      $values['tax_amount'] = '';
+    }
     $params = array(
       'id' => $this->_id,
       'financial_type_id' => $values['financial_type_id'],
@@ -157,6 +174,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       'line_total' => $values['line_total'],
       'tax_amount' => CRM_Utils_Array::value('tax_amount', $values, 0.00),
     );
+
     $lineItem = CRM_Price_BAO_LineItem::create($params);
     $lineItem = $lineItem->toArray();
 
