@@ -44,4 +44,4 @@
   </script>
 {/literal}
 
-{include file="CRM/Lineitemedit/Form/CalculateLineitemFields.tpl"}
+{include file="CRM/Lineitemedit/Form/CalculateLineItemFields.tpl"}
