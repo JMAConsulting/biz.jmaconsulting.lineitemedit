@@ -53,15 +53,20 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       'name'
     );
 
-    $this->_isQuickConfig = (bool) CRM_Core_DAO::getFieldValue(
+    $this->_isQuickConfig = empty($this->_lineitemInfo['price_field_id']) || CRM_Core_DAO::getFieldValue(
       'CRM_Price_DAO_PriceSet',
       CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceField', $this->_lineitemInfo['price_field_id'], 'price_set_id'),
       'is_quick_config'
     );
 
-    $this->_priceFieldInfo = civicrm_api3('PriceField', 'getsingle', array('id' => $this->_lineitemInfo['price_field_id']));
+    try {
+      $this->_priceFieldInfo = civicrm_api3('PriceField', 'getsingle', array('id' => $this->_lineitemInfo['price_field_id']));
+    }
+    catch(CiviCRM_API3_Exception $e) {
+      // Exception here means there was no price field ID.
+    }
 
-    if ($this->_isQuickConfig || $this->_priceFieldInfo['is_enter_qty'] == 0) {
+    if ($this->_isQuickConfig || empty($this->_priceFieldInfo['is_enter_qty'])) {
       $this->_values['qty'] = (int) $this->_values['qty'];
     }
   }
