@@ -210,16 +210,21 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
   }
 
   protected function updateEntityRecord($lineItem) {
-    if ($lineItem['entity_table'] == 'membership') {
-      $memberNumTerms = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $lineItem['price_field_value_id'], 'membership_num_terms');
-      $membershipTypeId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $lineItem['price_field_value_id'], 'membership_type_id');
-      $memberNumTerms = empty($memberNumTerms) ? 1 : $memberNumTerms;
-      $memberNumTerms = $lineItem['qty'] * $memberNumTerms;
+    if(empty($lineItem['entity_id']))
+      return;
+
+    if (($lineItem['entity_table'] == 'civicrm_membership') || ($lineItem['entity_table'] == 'membership')) {
       $memParams = array(
         'id' => $lineItem['entity_id'],
-        'num_terms' => $memberNumTerms,
-        'membership_type_id' => $membershipTypeId,
       );
+      if(!empty($lineItem['price_field_value_id'])) {
+        $memberNumTerms = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $lineItem['price_field_value_id'], 'membership_num_terms');
+        $membershipTypeId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $lineItem['price_field_value_id'], 'membership_type_id');
+        $memberNumTerms = empty($memberNumTerms) ? 1 : $memberNumTerms;
+        $memberNumTerms = $lineItem['qty'] * $memberNumTerms;
+        $memParams['num_terms'] = $memberNumTerms;
+        $memParams['membership_type_id'] = $membershipTypeId;
+      }
       if ($lineItem['qty'] == 0) {
         $memParams['status_id'] = 'Cancelled';
         $memParams['is_override'] = TRUE;
@@ -229,7 +234,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       }
       civicrm_api3('Membership', 'create', $memParams);
     }
-    else {
+    elseif (($lineItem['entity_table'] == 'civicrm_participant') || ($lineItem['entity_table'] == 'participant')) {
       $partUpdateFeeAmt = ['id' => $lineItem['entity_id']];
       $getUpdatedLineItems = CRM_Utils_SQL_Select::from('civicrm_line_item')
                               ->where([
@@ -244,7 +249,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       $line = array();
       $lineTotal = 0;
       foreach ($getUpdatedLineItems as $updatedLineItem) {
-        $line[$updatedLineItem['price_field_value_id']] = $updatedLineItem['label'] . ' - ' . (float) $updatedLineItem['qty'];
+        $line[] = $updatedLineItem['label'] . ' - ' . (float) $updatedLineItem['qty'];
         $lineTotal += $updatedLineItem['line_total'] + $updatedLineItem['tax_amount'];
       }
 
