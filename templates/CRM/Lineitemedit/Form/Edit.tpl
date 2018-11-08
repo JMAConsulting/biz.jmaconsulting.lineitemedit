@@ -18,4 +18,4 @@
 {include file="CRM/common/formButtons.tpl" location="bottom"}
 </div>
 
-{include file="CRM/Lineitemedit/Form/CalculateLineitemFields.tpl"}
+{include file="CRM/Lineitemedit/Form/CalculateLineItemFields.tpl"}
