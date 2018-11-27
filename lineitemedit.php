@@ -161,6 +161,15 @@ function lineitemedit_civicrm_postProcess($formName, &$form) {
       }
     }
   }
+  if ('CRM_Batch_Form_Entry' == $formName) {
+    CRM_Lineitemedit_Util::disableEnablePriceField(TRUE);
+  }
+}
+
+function lineitemedit_civicrm_validateForm($formName, &$fields, &$files, &$form, &$errors) {
+  if ('CRM_Batch_Form_Entry' == $formName && empty($errors)) {
+    CRM_Lineitemedit_Util::disableEnablePriceField();
+  }
 }
 
 function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
