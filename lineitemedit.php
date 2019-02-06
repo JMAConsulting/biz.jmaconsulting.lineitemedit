@@ -246,7 +246,7 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
           'line_total' => CRM_Utils_Rule::cleanMoney($lineItem['line_total']),
           'price_field_value_id' => $lineItem['price_field_value_id'],
           'financial_type_id' => $lineItem['financial_type_id'],
-          'tax_amount' => CRM_Utils_Array::value('tax_amount', $lineitem),
+          'tax_amount' => CRM_Utils_Array::value('tax_amount', $lineItem),
         );
         $newLineItem[] = civicrm_api3('LineItem', 'create', $newLineItemParams)['id'];
       }
