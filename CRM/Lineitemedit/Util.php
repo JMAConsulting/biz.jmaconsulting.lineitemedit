@@ -924,7 +924,6 @@ ORDER BY  ps.id, pf.weight ;
     }
     $contributeSettings = Civi::settings()->get('contribution_invoice_settings');
     $form->assign('taxEnabled', (!empty($contributeSettings['invoicing'])));
-    $form->assign('taxRates', json_encode(CRM_Core_PseudoConstant::getTaxRates()));
     $form->assign('lineItemSubmitted', json_encode($submittedValues));
     $form->assign('currency', CRM_Core_DAO::getFieldValue(
       'CRM_Financial_DAO_Currency',
