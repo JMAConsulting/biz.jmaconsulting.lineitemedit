@@ -71,11 +71,18 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
    * @return array
    */
   public function setDefaultValues() {
+    // Fetch chapter and fund codes.
+    $codes = CRM_Core_DAO::executeQuery("SELECT chapter_code, fund_code FROM civicrm_chapter_entity WHERE entity_table = 'civicrm_line_item' AND entity_id = {$this->_lineitemInfo['id']}")->fetchAll()[0];
+    if (!empty($codes)) {
+      $this->_values['chapter_code'] = $codes['chapter_code'];
+      $this->_values['fund_code'] = $codes['fund_code'];
+    }
     return $this->_values;
   }
 
   public function buildQuickForm() {
-    $fieldNames = array_keys($this->_values);
+    $fields = $this->_values;
+    $fieldNames = array_keys($fields);
     foreach ($fieldNames as $fieldName) {
       $required = TRUE;
       if ($fieldName == 'line_total') {
@@ -111,6 +118,18 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
         $ele->freeze();
       }
     }
+    // Add chapter codes.
+    $chapterCodes = CRM_Core_OptionGroup::values('chapter_codes');
+    $this->add('select', 'chapter_code',
+      ts('Chapter Code'),
+      $chapterCodes
+    );
+    // Add fund codes.
+    $fundCodes = CRM_Core_OptionGroup::values('fund_codes');
+    $this->add('select', 'fund_code',
+      ts('Chapter Code'),
+      $fundCodes
+    );
     $this->assign('fieldNames', $fieldNames);
 
     $this->assign('taxRates', json_encode(CRM_Core_PseudoConstant::getTaxRates()));
@@ -176,6 +195,15 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
 
     $lineItem = CRM_Price_BAO_LineItem::create($params);
     $lineItem = $lineItem->toArray();
+
+    // Save the chapter and fund information.
+    $chapterFundParams = [
+      'entity_id' => $this->_id,
+      'entity_table' => 'civicrm_line_item',
+      'chapter' => $values['chapter_code'],
+      'fund' => $values['fund_code'],
+    ];
+    CRM_EFT_BAO_EFT::saveChapterFund($chapterFundParams);
 
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_lineitemInfo['contribution_id']);

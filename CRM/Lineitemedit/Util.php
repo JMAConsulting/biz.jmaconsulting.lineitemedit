@@ -19,6 +19,16 @@ class CRM_Lineitemedit_Util {
       $lineItems = civicrm_api3('LineItem', 'Get', array('contribution_id' => $order['contribution_id']));
       $lineItems = $lineItems['values'];
     }
+    $chapterCodes = CRM_Core_OptionGroup::values('chapter_codes');
+    $fundCodes = CRM_Core_OptionGroup::values('fund_codes');
+    foreach ($lineItems as $key => &$item) {
+      $codes = CRM_Core_DAO::executeQuery("SELECT chapter_code, fund_code FROM civicrm_chapter_entity WHERE entity_table = 'civicrm_line_item' AND entity_id = {$item['id']}")->fetchAll()[0];
+      if (empty($codes)) {
+        continue;
+      }
+      $item['chapter_code'] = $chapterCodes[$codes['chapter_code']] . '-' . $codes['chapter_code'];
+      $item['fund_code'] = $fundCodes[$codes['fund_code']] . '-' . $codes['fund_code'];
+    }
 
     $lineItemTable = array(
       'rows' => array(),
@@ -61,6 +71,8 @@ class CRM_Lineitemedit_Util {
         'id' => $lineItem['id'],
         'item' => CRM_Utils_Array::value('label', $lineItem),
         'financial_type' => CRM_Core_PseudoConstant::getLabel('CRM_Contribute_BAO_Contribution', 'financial_type_id', $lineItem['financial_type_id']),
+        'chapter_code' => $lineItem['chapter_code'],
+        'fund_code' => $lineItem['fund_code'],
         'qty' => $lineItem['qty'],
         'unit_price' => $lineItem['unit_price'],
         'total_price' => $lineItem['line_total'],
