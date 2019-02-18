@@ -868,6 +868,8 @@ ORDER BY  ps.id, pf.weight ;
   public static function buildLineItemRows(&$form, $contributionID = NULL) {
     $fields = CRM_Lineitemedit_Util::getLineitemFieldNames(TRUE);
     $submittedValues = $pvIDs = [];
+    $chapterCodes = CRM_Core_OptionGroup::values('chapter_codes');
+    $fundCodes = CRM_Core_OptionGroup::values('fund_codes');
     if (!empty($contributionID)) {
       $options = CRM_Lineitemedit_Util::getPriceFieldLists($contributionID) + ['new' => ts('Create new item')];
       $pvIDs = array_keys($options);
@@ -877,6 +879,14 @@ ORDER BY  ps.id, pf.weight ;
       if (!empty($_POST['item_unit_price']) && !empty($_POST['item_unit_price'][$rowNumber])) {
         $submittedValues[] = $rowNumber;
       }
+      $form->add('select', "item_chapter_code[$rowNumber]",
+        ts('Chapter Code'),
+        $chapterCodes
+      );
+      $form->add('select', "item_fund_code[$rowNumber]",
+        ts('Fund Code'),
+        $fundCodes
+      );
       foreach ($fields as $fieldName) {
         if ($fieldName != 'price_field_value_id') {
           if (in_array($fieldName, ['line_total', 'tax_amount'])) {

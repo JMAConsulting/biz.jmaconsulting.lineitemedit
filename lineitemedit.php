@@ -215,7 +215,7 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
       for ($i = 0; $i <= 10; $i++) {
         $lineItemParams[$i] = [];
         $notFound = TRUE;
-        foreach (['item_label', 'item_financial_type_id', 'item_qty', 'item_unit_price', 'item_line_total', 'item_price_field_value_id', 'item_tax_amount'] as $attribute) {
+        foreach (['item_label', 'item_financial_type_id', 'item_chapter_code', 'item_fund_code', 'item_qty', 'item_unit_price', 'item_line_total', 'item_price_field_value_id', 'item_tax_amount'] as $attribute) {
           if (!empty($params[$attribute]) && !empty($params[$attribute][$i])) {
             if ($attribute == 'item_line_total') {
               $notFound = FALSE;
@@ -257,7 +257,16 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
           'financial_type_id' => $lineItem['financial_type_id'],
           'tax_amount' => CRM_Utils_Array::value('tax_amount', $lineItem),
         );
-        $newLineItem[] = civicrm_api3('LineItem', 'create', $newLineItemParams)['id'];
+        $newLineItem[] = $newId = civicrm_api3('LineItem', 'create', $newLineItemParams)['id'];
+        $chapterFundParams = [
+          'entity_id' => $newId,
+          'entity_table' => 'civicrm_line_item',
+          'chapter' => $lineItem['chapter_code'],
+          'fund' => $lineItem['fund_code'],
+        ];
+        CRM_Core_Session::singleton()->set('noUpdate', TRUE);
+        CRM_EFT_BAO_EFT::saveChapterFund($chapterFundParams);
+        CRM_Core_Session::singleton()->set('noUpdate', FALSE);
       }
 
       if (!empty($lineItemParams)) {

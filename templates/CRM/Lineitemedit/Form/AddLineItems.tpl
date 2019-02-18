@@ -190,6 +190,7 @@ CRM.$(function($) {
     if (pvid == 'new') {
       $('input[id^="item_label"]', row).val(ts('Additional line item'));
       $('select[id^="item_financial_type_id"]', row).select2('val', $('#financial_type_id').val());
+      $('select[id^="item_chapter_code"]', row).val(1000);
       $('input[id^="item_qty"]', row).val(1);
       total_amount = CRM.formatMoney(1, true);
       $('input[id^="item_unit_price"], input[id^="item_line_total"]', row).val(total_amount);
@@ -207,6 +208,7 @@ CRM.$(function($) {
         }
         $('input[id^="item_label"]', row).val(result.label);
         $('select[id^="item_financial_type_id"]', row).select2('val', result.financial_type_id);
+        $('select[id^="item_chapter_code"]', row).val(1000);
         $('input[id^="item_qty"]', row).val(1);
         total_amount = CRM.formatMoney(result.amount, true);
         $('input[id^="item_unit_price"], input[id^="item_line_total"]', row).val(total_amount);
