@@ -127,7 +127,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     // Add fund codes.
     $fundCodes = CRM_Core_OptionGroup::values('fund_codes');
     $this->add('select', 'fund_code',
-      ts('Chapter Code'),
+      ts('Fund Code'),
       $fundCodes
     );
     $this->assign('fieldNames', $fieldNames);
