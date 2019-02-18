@@ -19,3 +19,5 @@
 </div>
 
 {include file="CRM/Lineitemedit/Form/CalculateLineItemFields.tpl"}
+
+{include file="CRM/EFT/AddChapterFundCode.tpl"}

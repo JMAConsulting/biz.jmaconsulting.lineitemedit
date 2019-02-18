@@ -15,6 +15,8 @@
   <tr class="line-item-columnheader">
     <th>{ts}Item{/ts}</th>
     <th>{ts}Financial Type{/ts}</th>
+    <th>{ts}Chapter Code{/ts}</th>
+    <th>{ts}Fund Code{/ts}</th>
     <th>{ts}Qty{/ts}</th>
     <th>{ts}Unit Price{/ts}</th>
     <th>{ts}Total Price{/ts}</th>
@@ -26,6 +28,8 @@
       <tr class="lineitem-info-row">
         <td>{$row.item}</td>
         <td>{$row.financial_type}</td>
+        <td>{$row.chapter_code}</td>
+        <td>{$row.fund_code}</td>
         <td>{$row.qty}</td>
         <td>{$row.unit_price|crmMoney:$row.currency}</td>
         <td>{$row.total_price|crmMoney:$row.currency}</td>
@@ -39,6 +43,8 @@
     <tr id="add-item-row-{$rowNumber}" class="line-item-row hiddenElement">
       <td>{$form.item_label.$rowNumber.html}</td>
       <td>{$form.item_financial_type_id.$rowNumber.html}</td>
+      <td>{$form.item_chapter_code.$rowNumber.html}</td>
+      <td>{$form.item_fund_code.$rowNumber.html}</td>
       <td>{$form.item_qty.$rowNumber.html}</td>
       <td>{$form.item_unit_price.$rowNumber.html}</td>
       <td>{$form.item_line_total.$rowNumber.html}</td>
