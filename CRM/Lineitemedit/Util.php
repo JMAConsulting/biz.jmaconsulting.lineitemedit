@@ -19,15 +19,15 @@ class CRM_Lineitemedit_Util {
       $lineItems = civicrm_api3('LineItem', 'Get', array('contribution_id' => $order['contribution_id']));
       $lineItems = $lineItems['values'];
     }
-    $chapterCodes = CRM_Core_OptionGroup::values('chapter_codes');
-    $fundCodes = CRM_Core_OptionGroup::values('fund_codes');
+    $chapterCodes = CRM_EFT_BAO_EFT::getCodes('chapter_codes');
+    $fundCodes = CRM_EFT_BAO_EFT::getCodes('fund_codes');
     foreach ($lineItems as $key => &$item) {
       $codes = CRM_Core_DAO::executeQuery("SELECT chapter_code, fund_code FROM civicrm_chapter_entity WHERE entity_table = 'civicrm_line_item' AND entity_id = {$item['id']}")->fetchAll()[0];
       if (empty($codes)) {
         continue;
       }
-      $item['chapter_code'] = $chapterCodes[$codes['chapter_code']] . '-' . $codes['chapter_code'];
-      $item['fund_code'] = $fundCodes[$codes['fund_code']] . '-' . $codes['fund_code'];
+      $item['chapter_code'] = $chapterCodes[$codes['chapter_code']];
+      $item['fund_code'] = $fundCodes[$codes['fund_code']];
     }
 
     $lineItemTable = array(
@@ -868,8 +868,8 @@ ORDER BY  ps.id, pf.weight ;
   public static function buildLineItemRows(&$form, $contributionID = NULL) {
     $fields = CRM_Lineitemedit_Util::getLineitemFieldNames(TRUE);
     $submittedValues = $pvIDs = [];
-    $chapterCodes = CRM_Core_OptionGroup::values('chapter_codes');
-    $fundCodes = CRM_Core_OptionGroup::values('fund_codes');
+    $chapterCodes = CRM_EFT_BAO_EFT::getCodes('chapter_codes');
+    $fundCodes = CRM_EFT_BAO_EFT::getCodes('fund_codes');
     if (!empty($contributionID)) {
       $options = CRM_Lineitemedit_Util::getPriceFieldLists($contributionID) + ['new' => ts('Create new item')];
       $pvIDs = array_keys($options);
