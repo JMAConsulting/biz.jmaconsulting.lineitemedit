@@ -20,7 +20,7 @@ class CRM_Lineitemedit_Util {
       $lineItems = $lineItems['values'];
     }
     $chapterCodes = CRM_EFT_BAO_EFT::getCodes('chapter_codes');
-    $fundCodes = CRM_EFT_BAO_EFT::getCodes('fund_codes');
+    $fundCodes = CRM_Core_OptionGroup::values('fund_codes');
     foreach ($lineItems as $key => &$item) {
       $codes = CRM_Core_DAO::executeQuery("SELECT chapter_code, fund_code FROM civicrm_chapter_entity WHERE entity_table = 'civicrm_line_item' AND entity_id = {$item['id']}")->fetchAll()[0];
       if (empty($codes)) {
@@ -869,7 +869,7 @@ ORDER BY  ps.id, pf.weight ;
     $fields = CRM_Lineitemedit_Util::getLineitemFieldNames(TRUE);
     $submittedValues = $pvIDs = [];
     $chapterCodes = CRM_EFT_BAO_EFT::getCodes('chapter_codes');
-    $fundCodes = CRM_EFT_BAO_EFT::getCodes('fund_codes');
+    $fundCodes = CRM_Core_OptionGroup::values('fund_codes');
     if (!empty($contributionID)) {
       $options = CRM_Lineitemedit_Util::getPriceFieldLists($contributionID) + ['new' => ts('Create new item')];
       $pvIDs = array_keys($options);
