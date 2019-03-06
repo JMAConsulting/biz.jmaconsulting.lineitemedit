@@ -881,11 +881,11 @@ ORDER BY  ps.id, pf.weight ;
       }
       $form->add('select', "item_chapter_code[$rowNumber]",
         ts('Chapter Code'),
-        [ts('- select -')] + $chapterCodes
+        $chapterCodes
       );
       $form->add('select', "item_fund_code[$rowNumber]",
         ts('Fund Code'),
-        [ts('- select -')] + $fundCodes
+        $fundCodes
       );
       foreach ($fields as $fieldName) {
         if ($fieldName != 'price_field_value_id') {
