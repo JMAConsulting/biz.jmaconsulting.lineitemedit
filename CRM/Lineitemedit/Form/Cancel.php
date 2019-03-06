@@ -96,6 +96,46 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
       $this->_id,
       $this->_lineitemInfo
     );
+
+    // Record chapter and fund for reverse trxn
+    // Get last inserted financial trxn if updated.
+    $ft = CRM_EFT_BAO_EFT::getLastTrxnId($this->_prevContributionID);
+    if (!empty($ft)) {
+      $lastFt = CRM_Core_DAO::executeQuery("SELECT ce.chapter_code, ce.fund_code 
+        FROM civicrm_contribution c
+        INNER JOIN civicrm_entity_financial_trxn eft ON eft.entity_id = c.id AND eft.entity_table = 'civicrm_contribution'
+        INNER JOIN civicrm_financial_trxn ft ON ft.id = eft.financial_trxn_id
+        INNER JOIN civicrm_chapter_entity ce ON ce.entity_id = ft.id AND ce.entity_table = 'civicrm_financial_trxn'
+        WHERE c.id = {$this->_prevContributionID} ORDER BY ft.id DESC LIMIT 1")->fetchAll()[0];
+      if (!empty($lastFt)) {
+        $params = [
+          "entity_id" => $ft,
+          "entity_table" => "civicrm_financial_trxn",
+          "chapter" => $lastFt['chapter_code'],
+          "fund" => $lastFt['fund_code'],
+        ];
+        CRM_EFT_BAO_EFT::saveChapterFund($params);
+      }
+    }
+    $fi = CRM_Contribute_BAO_Contribution::getLastFinancialItemIds($this->_prevContributionID)[0];
+    $fi = reset($fi);
+    if ($fi) {
+      $entry = CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_chapter_entity WHERE entity_id = {$fi} AND entity_table = 'civicrm_financial_item'");
+      if (!$entry) {
+        $lastFi = CRM_Core_DAO::executeQuery("SELECT ce.chapter_code, ce.fund_code
+          FROM civicrm_financial_item fi
+          INNER JOIN civicrm_line_item li ON li.id = fi.entity_id and fi.entity_table = 'civicrm_line_item'
+          INNER JOIN civicrm_chapter_entity ce ON ce.entity_id = fi.id AND ce.entity_table = 'civicrm_financial_item'
+          WHERE li.contribution_id = {$this->_prevContributionID} ORDER BY fi.id DESC LIMIT 1")->fetchAll()[0];
+        $params = [
+          "entity_id" => $fi,
+          "entity_table" => "civicrm_financial_item",
+          "chapter" => $lastFi['chapter_code'],
+          "fund" => $lastFi['fund_code'],
+        ];
+        CRM_EFT_BAO_EFT::saveChapterFund($params);
+      }
+    }
   }
 
   public function testSubmit($id) {
