@@ -13,6 +13,18 @@ class CRM_Lineitemedit_Upgrader extends CRM_Lineitemedit_Upgrader_Base {
    CRM_Lineitemedit_Util::generatePriceField();
  }
 
+ public function uninstall() {
+   CRM_Lineitemedit_Util::disableEnablePriceField();
+ }
+
+ public function disable() {
+   CRM_Lineitemedit_Util::disableEnablePriceField();
+ }
+
+ public function enable() {
+   CRM_Lineitemedit_Util::disableEnablePriceField(TRUE);
+ }
+
   /**
    * Example: Run a couple simple queries.
    *
