@@ -94,6 +94,45 @@ class CRM_Lineitemedit_Form_EditTest extends CRM_Lineitemedit_Form_BaseTest {
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
   }
 
+  public function testWithoutPriceFieldID() {
+    // Contribution amount and status before LineItem edit
+    $this->assertEquals('Completed', $this->_contribution['contribution_status']);
+    $this->assertEquals(100.00, $this->_contribution['total_amount']);
+
+    $form = new CRM_Lineitemedit_Form_Edit();
+
+    $lineItemInfo = $this->callAPISuccessGetSingle('LineItem', array('contribution_id' => $this->_contributionID));
+    $this->callAPISuccess('LineItem', 'create', array('id' => $lineItemInfo['id'], 'price_field_id' => '', 'price_field_value_id' => ''));
+
+    $lineItemInfo = $this->callAPISuccessGetSingle('LineItem', array('contribution_id' => $this->_contributionID));
+    $lineItemInfo['qty'] += 1; // increase lineitem qty to 2
+    $lineItemInfo['line_total'] *= $lineItemInfo['qty'];
+    $form->testSubmit($lineItemInfo);
+
+    // Contribution amount and status after LineItem edit
+    $contribution = $this->callAPISuccessGetSingle('Contribution', array('id' => $this->_contributionID));
+    $this->assertEquals('Partially paid', $contribution['contribution_status']);
+    $this->assertEquals(200.00, $contribution['total_amount']);
+
+    $check = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'payment_instrument_id', 'Check');
+    $actualFinancialItemEntries = $this->getFinancialItemsByContributionID($this->_contributionID);
+    $expectedFinancialItemEntries = array(
+      array(
+        'contact_id' => $this->_contactID,
+        'description' => 'Contribution Amount',
+        'amount' => 100.00,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Paid'),
+      ),
+      array(
+        'contact_id' => $this->_contactID,
+        'description' => '2.00 of Contribution Amount',
+        'amount' => 100.00,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Unpaid'),
+      ),
+    );
+    $this->checkArrayEqualsByAttributes($expectedFinancialItemEntries, $actualFinancialItemEntries);
+  }
+
   /**
    * Example: Test that a version is returned.
    */

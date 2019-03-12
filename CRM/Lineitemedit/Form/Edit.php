@@ -53,15 +53,14 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       'name'
     );
 
-    $this->_isQuickConfig = (bool) CRM_Core_DAO::getFieldValue(
-      'CRM_Price_DAO_PriceSet',
-      CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceField', $this->_lineitemInfo['price_field_id'], 'price_set_id'),
-      'is_quick_config'
-    );
+    $this->_isQuickConfig = empty($this->_lineitemInfo['price_field_id']);
 
-    $this->_priceFieldInfo = civicrm_api3('PriceField', 'getsingle', array('id' => $this->_lineitemInfo['price_field_id']));
+    if (!empty($this->_lineitemInfo['price_field_id'])) {
+      $this->_priceFieldInfo = civicrm_api3('PriceField', 'getsingle', array('id' => $this->_lineitemInfo['price_field_id']));
+      $this->_isQuickConfig = (bool) CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceSet', $this->_priceFieldInfo['price_set_id'], 'is_quick_config');
+    }
 
-    if ($this->_isQuickConfig || $this->_priceFieldInfo['is_enter_qty'] == 0) {
+    if ($this->_isQuickConfig || empty($this->_priceFieldInfo['is_enter_qty'])) {
       $this->_values['qty'] = (int) $this->_values['qty'];
     }
   }
@@ -195,7 +194,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       $this->_lineitemInfo
     );
 
-    if (in_array($this->_lineitemInfo['entity_table'], ['civicrm_membership', 'civicrm_participant'])) {
+    if (in_array($this->_lineitemInfo['entity_table'], ['civicrm_membership', 'civicrm_participant']) && !empty($lineItem['entity_id'])) {
       $this->updateEntityRecord($this->_lineitemInfo);
       $entityTab = ($this->_lineitemInfo['entity_table'] == 'civicrm_membership') ? 'member' : 'participant';
       if (!$isTest) {
@@ -205,27 +204,28 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
   }
 
   protected function updateEntityRecord($lineItem) {
-    if ($lineItem['entity_table'] == 'membership') {
-      $memberNumTerms = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $lineItem['price_field_value_id'], 'membership_num_terms');
-      $membershipTypeId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $lineItem['price_field_value_id'], 'membership_type_id');
-      $memberNumTerms = empty($memberNumTerms) ? 1 : $memberNumTerms;
-      $memberNumTerms = $lineItem['qty'] * $memberNumTerms;
-      $memParams = array(
-        'id' => $lineItem['entity_id'],
-        'num_terms' => $memberNumTerms,
-        'membership_type_id' => $membershipTypeId,
-      );
+    $params = ['id' => $lineItem['entity_id']];
+    if (($lineItem['entity_table'] == 'civicrm_membership')) {
+      if (!empty($lineItem['price_field_value_id'])) {
+        $memberNumTerms = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $lineItem['price_field_value_id'], 'membership_num_terms');
+        $membershipTypeId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $lineItem['price_field_value_id'], 'membership_type_id');
+        $memberNumTerms = empty($memberNumTerms) ? 1 : $memberNumTerms;
+        $memberNumTerms = $lineItem['qty'] * $memberNumTerms;
+        $params['num_terms'] = $memberNumTerms;
+        $params['membership_type_id'] = $membershipTypeId;
+      }
       if ($lineItem['qty'] == 0) {
-        $memParams['status_id'] = 'Cancelled';
-        $memParams['is_override'] = TRUE;
+        $params['status_id'] = 'Cancelled';
+        $params['is_override'] = TRUE;
       }
       else {
-        $memParams['skipStatusCal'] = FALSE;
+        $params['skipStatusCal'] = FALSE;
       }
-      civicrm_api3('Membership', 'create', $memParams);
+      civicrm_api3('Membership', 'create', $params);
     }
     else {
-      $partUpdateFeeAmt = ['id' => $lineItem['entity_id']];
+      $line = array();
+      $lineTotal = 0;
       $getUpdatedLineItems = CRM_Utils_SQL_Select::from('civicrm_line_item')
                               ->where([
                                 "entity_table = '!et'",
@@ -236,16 +236,14 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
                               ->param('#eid', $lineItem['entity_id'])
                               ->execute()
                               ->fetchAll();
-      $line = array();
-      $lineTotal = 0;
       foreach ($getUpdatedLineItems as $updatedLineItem) {
-        $line[$updatedLineItem['price_field_value_id']] = $updatedLineItem['label'] . ' - ' . (float) $updatedLineItem['qty'];
+        $line[] = $updatedLineItem['label'] . ' - ' . (float) $updatedLineItem['qty'];
         $lineTotal += $updatedLineItem['line_total'] + $updatedLineItem['tax_amount'];
       }
 
-      $partUpdateFeeAmt['fee_level'] = implode(', ', $line);
-      $partUpdateFeeAmt['fee_amount'] = $lineTotal;
-      civicrm_api3('Participant', 'create', $partUpdateFeeAmt);
+      $params['fee_level'] = implode(', ', $line);
+      $params['fee_amount'] = $lineTotal;
+      civicrm_api3('Participant', 'create', $params);
 
       //activity creation
       CRM_Event_BAO_Participant::addActivityForSelection($lineItem['entity_id'], 'Change Registration');
