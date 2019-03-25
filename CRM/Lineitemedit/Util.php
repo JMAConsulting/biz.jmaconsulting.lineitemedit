@@ -926,12 +926,6 @@ ORDER BY  ps.id, pf.weight ;
     $form->assign('taxEnabled', (!empty($contributeSettings['invoicing'])));
     $form->assign('taxRates', json_encode(CRM_Core_PseudoConstant::getTaxRates()));
     $form->assign('lineItemSubmitted', json_encode($submittedValues));
-    $form->assign('currency', CRM_Core_DAO::getFieldValue(
-      'CRM_Financial_DAO_Currency',
-      ($contributionID ? CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $contributionID, 'currency') : CRM_Core_Config::singleton()->defaultCurrency),
-      'symbol',
-      'name'
-    ));
   }
 
   /**
