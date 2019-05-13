@@ -159,13 +159,15 @@ CRM.$(function($) {
 
   function calculateTotalAmount() {
     var thousandMarker = "{/literal}{$config->monetaryThousandSeparator}{literal}";
-    var total_amount = (isNaN(parseFloat('{/literal}{$totalTaxAmount}{literal}')) ? 0 : parseFloat('{/literal}{$totalTaxAmount}{literal}'));
+    let total_amount = 0;
     if ($('input[id="total_amount"]').length) {
-      total_amount = total_amount +  parseFloat(($('input[id="total_amount"]').val().replace(thousandMarker,'') || 0));
+      total_amount = parseFloat(($('input[id="total_amount"]').val().replace(thousandMarker,'') || 0));
     }
-    else {
-      total_amount = total_amount + (isNaN(parseFloat('{/literal}{$totalAmount}{literal}')) ? 0 : parseFloat('{/literal}{$totalAmount}{literal}'));
+
+    if (!$("#total_amount").is(":hidden")) {
+      total_amount += calculateTaxAmount($('select[id="financial_type_id"]').val(), total_amount);
     }
+
     $.each($('.line-item-row'), function() {
       total_amount += parseFloat(($('input[id^="item_line_total_"]', this).val().replace(thousandMarker,'') || 0));
       if ($('input[id^="item_tax_amount"]', this).length) {
