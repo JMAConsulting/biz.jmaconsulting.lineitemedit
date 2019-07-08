@@ -103,6 +103,21 @@ function lineitemedit_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
   _lineitemedit_civix_civicrm_alterSettingsFolders($metaDataFolders);
 }
 
+/**
+ * Implements hook_civicrm_container().
+ */
+function lineitemedit_civicrm_container(\Symfony\Component\DependencyInjection\ContainerBuilder $container) {
+  $container->setDefinition("cache.lineitemEditor", new Symfony\Component\DependencyInjection\Definition(
+    'CRM_Utils_Cache_Interface',
+    [
+      [
+        'name' => 'lineitem-editor',
+        'type' => ['*memory*', 'SqlGroup', 'ArrayCache'],
+      ],
+    ]
+  ))->setFactory('CRM_Utils_Cache::create');
+}
+
 function lineitemedit_civicrm_buildForm($formName, &$form) {
   if ($formName == 'CRM_Contribute_Form_Contribution') {
     $contributionID = NULL;
@@ -281,7 +296,7 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
           $taxAmount,
           TRUE, TRUE
         );
-        CRM_Core_BAO_Cache::setItem($contriParams, 'lineitem-editor', $entityID);
+        Civi::cache('lineitemEditor')->set($entityID, $contriParams);
 
         // record financial item on addition of lineitem
         if ($trxn) {
@@ -300,11 +315,11 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
 
 function lineitemedit_civicrm_post($op, $entity, $entityID, &$obj) {
   if ($entity == 'Contribution' && $op == 'edit') {
-    $contriParams = CRM_Core_BAO_Cache::getItem('lineitem-editor', $entityID);
+    $contriParams = Civi::cache('lineitemEditor')->get($entityID);
     if (!empty($contriParams)) {
       $obj->copyValues($contriParams);
       $obj->save();
-      CRM_Core_BAO_Cache::deleteGroup('lineitem-editor', $entityID);
+      Civi::cache('lineitemEditor')->delete($entityID);
     }
   }
 }
