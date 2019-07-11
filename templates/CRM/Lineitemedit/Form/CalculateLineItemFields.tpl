@@ -21,7 +21,7 @@
         var qty = $('#qty', $form).val();
         var totalAmount = CRM.formatMoney((qty * unit_price), true);
         $('#line_total', $form).val(totalAmount);
-        changeTaxAmount(totalAmount, $('#financial_type_id').val());
+        changeTaxAmount((qty * unit_price), $('#financial_type_id').val());
       });
     });
 
