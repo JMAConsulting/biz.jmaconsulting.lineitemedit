@@ -146,11 +146,11 @@ CRM.$(function($) {
     var row = $(this).closest('tr');
     var unit_price = $('input[id^="item_unit_price_"]', row).val();
     var qty = $('input[id^="item_qty_"]', row).val();
-    var totalAmount = CRM.formatMoney((qty * unit_price), true);
-    $('input[id^="item_line_total_"]', row).val(totalAmount);
+    var totalAmount = (qty * unit_price);
+    $('input[id^="item_line_total_"]', row).val(CRM.formatMoney(totalAmount, true));
     if ($('input[id^="item_tax_amount"]', row).length) {
       var tax_amount = calculateTaxAmount($('select[id^="item_financial_type_id_"]', row).val(), totalAmount);
-      $('input[id^="item_tax_amount"]', row).val(CRM.formatMoney(tax_amount, true));
+      $('input[id^="item_tax_amount"]', row).val(tax_amount);
     }
     calculateTotalAmount();
   });
@@ -219,7 +219,7 @@ CRM.$(function($) {
     var tax_amount = 0;
     var tax_rates = {/literal}{$taxRates}{literal};
     if (financial_type_id in tax_rates) {
-      tax_amount = (tax_rates[financial_type_id] / 100 ) * line_total;
+      tax_amount = (tax_rates[financial_type_id] / 100) * line_total;
     }
     return tax_amount;
   }

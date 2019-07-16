@@ -171,7 +171,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       'qty' => $values['qty'],
       'unit_price' => CRM_Utils_Rule::cleanMoney($values['unit_price']),
       'line_total' => $values['line_total'],
-      'tax_amount' => CRM_Utils_Array::value('tax_amount', $values, 0.00),
+      'tax_amount' => CRM_Utils_Rule::cleanMoney(CRM_Utils_Array::value('tax_amount', $values, 0.00)),
     );
 
     $lineItem = CRM_Price_BAO_LineItem::create($params);
