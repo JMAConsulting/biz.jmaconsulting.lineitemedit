@@ -204,6 +204,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       'fund' => $values['fund_code'],
     ];
     CRM_EFT_BAO_EFT::saveChapterFund($chapterFundParams);
+    CRM_EFT_BAO_EFT::checkAndUpdateRelatedContribution($chapterFundParams);
 
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_lineitemInfo['contribution_id']);
