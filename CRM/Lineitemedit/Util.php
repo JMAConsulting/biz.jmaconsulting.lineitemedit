@@ -953,10 +953,10 @@ ORDER BY  ps.id, pf.weight ;
     ]);
 
     $newPriceFieldValue = civicrm_api3('PriceFieldValue', 'create', [
-      'label' => ts('Additional Lineitem ' . $totalPF),
+      'label' => ts('Additional Lineitem %1', [1 => $totalPF]),
       'price_field_id' => $newPriceField['id'],
       'amount' => 1.00,
-      'financial_type_id' => civicrm_api3('PriceFieldValue', 'getvalue', ['id' => $previousLineItem['price_field_value_id'], 'return' => 'financial_type_id']),
+      'financial_type_id' => $previousLineItem['financial_type_id'],
     ]);
 
     return [$newPriceField['id'], $newPriceFieldValue['id']];
