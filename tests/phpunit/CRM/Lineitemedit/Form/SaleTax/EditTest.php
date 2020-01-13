@@ -107,7 +107,7 @@ class CRM_Lineitemedit_Form_SaleTax_EditTest extends CRM_Lineitemedit_Form_BaseT
     $expectedFinancialTrxnEntries = array(
       array(
         'total_amount' => 110.00,
-        'net_amount' => 100.00, // @TODO this is suppose to be 110
+        'net_amount' => 110.00,
         'is_payment' => 1,
         'payment_instrument_id' => $check,
         'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
@@ -185,7 +185,7 @@ class CRM_Lineitemedit_Form_SaleTax_EditTest extends CRM_Lineitemedit_Form_BaseT
     $expectedFinancialTrxnEntries = array(
       array(
         'total_amount' => 110.00,
-        'net_amount' => 100.00, // @TODO this is suppose to be 110
+        'net_amount' => 110.00,
         'is_payment' => 1,
         'payment_instrument_id' => $check,
         'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
@@ -211,8 +211,7 @@ class CRM_Lineitemedit_Form_SaleTax_EditTest extends CRM_Lineitemedit_Form_BaseT
       'net_amount' => 110,
       'tax_amount' => 10,
       'financial_type_id' => $this->_financialTypeID,
-      'receive_date' => '04/21/2015',
-      'receive_date_time' => '11:27PM',
+      'receive_date' => '2015-04-21 23:27:00',
       'contact_id' => $contactID,
       'price_set_id' => $this->_priceSetID,
       'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
