@@ -106,7 +106,7 @@ class CRM_Lineitemedit_UtilTest extends \PHPUnit\Framework\TestCase implements H
     $this->assertEquals('additional_lineitem_1', $newPriceField['name']);
     $newPriceFieldValue = $this->callAPISuccess('PriceFieldValue', 'getsingle', ['id' => $result[1]]);
     $this->assertEquals('additional_lineitem_1', $newPriceFieldValue['name']);
-    $this->assertEuqals($this->_financialTypeId, $newPriceFieldValue['financial_type_id']);
+    $this->assertEquals($this->_financialTypeId, $newPriceFieldValue['financial_type_id']);
     CRM_Financial_BAO_FinancialType::setIsActive($this->_financialTypeId, 1);
     $this->callAPISuccess('System', 'flush', []);
     $this->callAPISuccess('PriceFieldValue', 'delete', ['id' => $newPriceFieldValue['id']]);

@@ -952,13 +952,20 @@ ORDER BY  ps.id, pf.weight ;
       'visibility_id' => "admin",
     ]);
 
-    $newPriceFieldValue = civicrm_api3('PriceFieldValue', 'create', [
+    $ftActive = civicrm_api3('FinancialType', 'getsingle', ['id' => $previousLineItem['financial_type_id']])['is_active'];
+    $priceFieldValueParams = [
       'label' => ts('Additional Lineitem ' . $totalPF),
       'price_field_id' => $newPriceField['id'],
       'amount' => 1.00,
-      'financial_type_id' => civicrm_api3('PriceFieldValue', 'getvalue', ['id' => $previousLineItem['price_field_value_id'], 'return' => 'financial_type_id']),
-    ]);
-
+      'financial_type_id' => $previousLineItem['financial_type_id'],
+    ];
+    if (!$ftActive) {
+      $priceFieldValueParams['is_active'] = 0;
+    }
+    $newPriceFieldValue = civicrm_api3('PriceFieldValue', 'create', $priceFieldValueParams);
+    if (!$ftActive) {
+      CRM_Price_BAO_PriceFieldValue::setIsActive($newPriceFieldValue['id'], 1);
+    }
     return [$newPriceField['id'], $newPriceFieldValue['id']];
   }
 
