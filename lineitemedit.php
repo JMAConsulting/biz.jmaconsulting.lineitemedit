@@ -191,7 +191,7 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
   if ($entity == 'Contribution') {
     if ($op == 'create' && empty($params['price_set_id'])) {
       $lineItemParams = [];
-      $taxEnabled = (bool) CRM_Utils_Array::value('invoicing', Civi::settings()->get('contribution_invoice_settings'));
+      $taxEnabled = (bool) Civi::settings()->get('invoicing');
       for ($i = 0; $i <= 10; $i++) {
         $lineItemParams[$i] = [];
         $notFound = TRUE;

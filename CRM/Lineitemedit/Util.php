@@ -197,7 +197,7 @@ class CRM_Lineitemedit_Util {
     // create financial item for added line item
     $newFinancialItemDAO = CRM_Financial_BAO_FinancialItem::create($newFinancialItem, NULL, $trxnId);
     if (!empty($lineItem['tax_amount']) && $lineItem['tax_amount'] != 0) {
-      $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
+      $taxTerm = Civi::settings()->get('tax_term');
       $taxFinancialItemInfo = array_merge($newFinancialItem, array(
         'amount' => $lineItem['tax_amount'],
         'description' => $taxTerm,
@@ -379,9 +379,8 @@ ORDER BY  ps.id, pf.weight ;
       $priceFieldValueInfo = civicrm_api3('PriceFieldValue', 'getsingle', array('id' => $priceFieldValueID));
 
       // calculate tax amount
-      $contributeSettings = Civi::settings()->get('contribution_invoice_settings');
       $taxRates = CRM_Core_PseudoConstant::getTaxRates();
-      if (!empty($contributeSettings['invoicing']) &&
+      if (Civi::settings()->get('invoicing') &&
         array_key_exists($priceFieldValueInfo['financial_type_id'], $taxRates)
       ) {
         $taxRate = $taxRates[$priceFieldValueInfo['financial_type_id']];
@@ -424,8 +423,7 @@ ORDER BY  ps.id, pf.weight ;
     }
 
     // if tax is enabled append tax_amount field name
-    $contributeSettings = Civi::settings()->get('contribution_invoice_settings');
-    if (!empty($contributeSettings['invoicing'])) {
+    if (Civi::settings()->get('invoicing')) {
       $fieldNames = array_merge($fieldNames, array('tax_amount'));
     }
 
@@ -664,7 +662,7 @@ ORDER BY  ps.id, pf.weight ;
     $financialItem['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItem['financial_type_id'], $accountRelName);
     $ftItem = CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
     if ($taxAmountChanged && $balanceTaxAmount != 0) {
-      $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
+      $taxTerm = Civi::settings()->get('tax_term');
       $taxFinancialItemInfo = array_merge($financialItem, array(
         'amount' => $balanceTaxAmount,
         'description' => $taxTerm,
@@ -726,7 +724,7 @@ ORDER BY  ps.id, pf.weight ;
       $trxnId = array('id' => $trxnId);
       $ftItem = CRM_Financial_BAO_FinancialItem::create($financialItem, NULL, $trxnId);
       if ($values['tax_amount'] != 0) {
-        $taxTerm = CRM_Utils_Array::value('tax_term', Civi::settings()->get('contribution_invoice_settings'));
+        $taxTerm = Civi::settings()->get('tax_term');
         $taxFinancialItemInfo = array_merge($financialItem, array(
           'amount' => $values['tax_amount'],
           'description' => $taxTerm,
@@ -922,8 +920,7 @@ ORDER BY  ps.id, pf.weight ;
         }
       }
     }
-    $contributeSettings = Civi::settings()->get('contribution_invoice_settings');
-    $form->assign('taxEnabled', (!empty($contributeSettings['invoicing'])));
+    $form->assign('taxEnabled', Civi::settings()->get('invoicing'));
     $form->assign('taxRates', json_encode(CRM_Core_PseudoConstant::getTaxRates()));
     $form->assign('lineItemSubmitted', json_encode($submittedValues));
   }

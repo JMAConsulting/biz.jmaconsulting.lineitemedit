@@ -327,28 +327,24 @@ class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit_Framework_TestCase impleme
        'invoicing' => 1,
        'invoice_prefix' => 'INV_',
        'credit_notes_prefix' => 'CN_',
-       'due_date' => 10,
-       'due_date_period' => 'days',
-       'notes' => '',
+       'invoice_due_date' => 10,
+       'invoice_due_date_period' => 'days',
+       'invoice_notes' => '',
        'is_email_pdf' => 1,
        'tax_term' => 'Sales Tax',
        'tax_display_settings' => 'Inclusive',
      )
     );
-    return Civi::settings()->set('contribution_invoice_settings', $contributeSetting);
+    foreach ($contributeSetting as $key => $value) {
+      Civi::settings()->set($key, $value);
+    }
   }
 
   /**
    * Enable Tax and Invoicing
    */
   protected function disableTaxAndInvoicing($params = array()) {
-    // Enable component contribute setting
-    $contributeSetting = array_merge($params,
-     array(
-       'invoicing' => 0,
-     )
-    );
-    return Civi::settings()->set('contribution_invoice_settings', $contributeSetting);
+    return Civi::settings()->set('invoicing', 0);
   }
 
   /**
