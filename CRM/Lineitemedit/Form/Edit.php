@@ -177,6 +177,11 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     $lineItem = CRM_Price_BAO_LineItem::create($params);
     $lineItem = $lineItem->toArray();
 
+    // Sync financial type if contribution has only one line item.
+    if ($values['financial_type_id'] != $this->_lineitemInfo['financial_type_id'] && civicrm_api3('LineItem', 'getcount', ['contribution_id' => $this->_lineitemInfo['contribution_id']]) < 2) {
+      civicrm_api3('Contribution', 'create', ['financial_type_id' => $values['financial_type_id'], 'id' => $this->_lineitemInfo['contribution_id']]);
+    }
+
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_lineitemInfo['contribution_id']);
     $taxAmount = CRM_Lineitemedit_Util::getTaxAmountTotalFromContributionID($this->_lineitemInfo['contribution_id']);
