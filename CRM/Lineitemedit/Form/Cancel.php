@@ -99,7 +99,7 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
 
     // Record chapter and fund for reverse trxn
     // Get last inserted financial trxn if updated.
-    $ft = CRM_EFT_BAO_EFT::getLastTrxnId($this->_prevContributionID);
+    $ft = CRM_EFT_BAO_EFT::getMostRecentTrxnIds($this->_prevContributionID);
     if (!empty($ft)) {
       $lastFt = CRM_Core_DAO::executeQuery("SELECT ce.chapter_code, ce.fund_code 
         FROM civicrm_contribution c
@@ -109,7 +109,7 @@ class CRM_Lineitemedit_Form_Cancel extends CRM_Core_Form {
         WHERE c.id = {$this->_prevContributionID} ORDER BY ft.id DESC LIMIT 1")->fetchAll()[0];
       if (!empty($lastFt)) {
         $params = [
-          "entity_id" => $ft,
+          "entity_id" => $ft['id'],
           "entity_table" => "civicrm_financial_trxn",
           "chapter" => $lastFt['chapter_code'],
           "fund" => $lastFt['fund_code'],
