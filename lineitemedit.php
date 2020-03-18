@@ -287,6 +287,7 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
           $taxAmount,
           TRUE, TRUE
         );
+        $entityID = (string) $entityID;
         Civi::cache('lineitemEditor')->set($entityID, $contriParams);
 
         // record financial item on addition of lineitem
@@ -306,6 +307,7 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
 
 function lineitemedit_civicrm_post($op, $entity, $entityID, &$obj) {
   if ($entity == 'Contribution' && $op == 'edit') {
+    $entityID = (string) $entityID;
     $contriParams = Civi::cache('lineitemEditor')->get($entityID);
     if (!empty($contriParams)) {
       $obj->copyValues($contriParams);
