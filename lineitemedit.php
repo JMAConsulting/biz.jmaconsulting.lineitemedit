@@ -115,7 +115,7 @@ function lineitemedit_civicrm_container(\Symfony\Component\DependencyInjection\C
         'type' => ['*memory*', 'SqlGroup', 'ArrayCache'],
       ],
     ]
-  ))->setFactory('CRM_Utils_Cache::create');
+  ))->setFactory('CRM_Utils_Cache::create')->setPublic(TRUE);
 }
 
 function lineitemedit_civicrm_buildForm($formName, &$form) {
