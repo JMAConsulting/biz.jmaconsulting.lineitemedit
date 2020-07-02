@@ -95,8 +95,7 @@ class CRM_Lineitemedit_Form_CancelTest extends CRM_Lineitemedit_Form_BaseTest {
     $params = array(
       'total_amount' => 100,
       'financial_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Donation'),
-      'receive_date' => '04/21/2015',
-      'receive_date_time' => '11:27PM',
+      'receive_date' => '2015-04-21 23:27:00',
       'contact_id' => $contactID,
       'price_set_id' => $this->_priceSetID,
       'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),

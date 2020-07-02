@@ -18,7 +18,7 @@ use Civi\Test\TransactionalInterface;
  *
  * @group headless
  */
-class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit_Framework_TestCase implements HeadlessInterface, HookInterface, TransactionalInterface {
+class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit\Framework\TestCase implements HeadlessInterface, HookInterface, TransactionalInterface {
 
   protected $_contactID;
   protected $_contributionID;

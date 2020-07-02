@@ -104,7 +104,7 @@ class CRM_Lineitemedit_Form_SaleTax_CancelTest extends CRM_Lineitemedit_Form_Bas
     $expectedFinancialTrxnEntries = array(
       array(
         'total_amount' => 110.00,
-        'net_amount' => 100.00, // @TODO this is suppose to be 110
+        'net_amount' => 110.00,
         'is_payment' => 1,
         'payment_instrument_id' => $check,
         'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
@@ -131,8 +131,7 @@ class CRM_Lineitemedit_Form_SaleTax_CancelTest extends CRM_Lineitemedit_Form_Bas
       'net_amount' => 330,
       'tax_amount' => 30,
       'financial_type_id' => $this->_financialTypeID,
-      'receive_date' => '04/21/2015',
-      'receive_date_time' => '11:27PM',
+      'receive_date' => '2015-04-21 23:27:00',
       'contact_id' => $contactID,
       'price_set_id' => $this->_priceSetID,
       'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
@@ -215,7 +214,7 @@ class CRM_Lineitemedit_Form_SaleTax_CancelTest extends CRM_Lineitemedit_Form_Bas
     );
     $this->checkArrayEqualsByAttributes($expectedFinancialItemEntries, $actualFinancialItemEntries);
 
-    $actualFinancialTrxnEntries = $this->getFinancialItemsByContributionID($contribution['id']);
+    $actualFinancialTrxnEntries = $this->getFinancialTrxnsByContributionID($contribution['id']);
     $expectedFinancialTrxnEntries = array(
       array(
         'total_amount' => 330.00,

@@ -175,7 +175,7 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
     );
 
     $lineItem = CRM_Price_BAO_LineItem::create($params);
-    $lineItem = $lineItem->toArray();
+    $lineItem = civicrm_api3('LineItem', 'getsingle', ['id' => $this->_id]);
 
     // calculate balance, tax and paidamount later used to adjust transaction
     $updatedAmount = CRM_Price_BAO_LineItem::getLineTotal($this->_lineitemInfo['contribution_id']);
@@ -238,9 +238,8 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
                               ->fetchAll();
       foreach ($getUpdatedLineItems as $updatedLineItem) {
         $line[] = $updatedLineItem['label'] . ' - ' . (float) $updatedLineItem['qty'];
-        $lineTotal += $updatedLineItem['line_total'] + $updatedLineItem['tax_amount'];
+        $lineTotal += $updatedLineItem['line_total'] + (float) $updatedLineItem['tax_amount'];
       }
-
       $params['fee_level'] = implode(', ', $line);
       $params['fee_amount'] = $lineTotal;
       civicrm_api3('Participant', 'create', $params);
