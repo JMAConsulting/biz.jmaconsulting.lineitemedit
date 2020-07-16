@@ -223,6 +223,91 @@ class CRM_Lineitemedit_Form_EditTest extends CRM_Lineitemedit_Form_BaseTest {
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
   }
 
+  public function testFinancialTypeChangeWithPriceSet() {
+    $priceFieldValues = $this->createPriceSet();
+    $priceFieldID = key($priceFieldValues);
+    $contactID = $this->createDummyContact();
+    $params = array(
+      'total_amount' => 100,
+      'financial_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Donation'),
+      'receive_date' => '2015-04-21 23:27:00',
+      'contact_id' => $contactID,
+      'price_set_id' => $this->_priceSetID,
+      'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
+      'price_' . $priceFieldID => array($priceFieldValues[$priceFieldID][0] => 1),
+    );
+    $form = new CRM_Contribute_Form_Contribution();
+    $form->_priceSet = current(CRM_Price_BAO_PriceSet::getSetDetail($this->_priceSetID));
+    $form->testSubmit($params, CRM_Core_Action::ADD);
+
+    $contribution = $this->callAPISuccessGetSingle('Contribution', array('contact_id' => $contactID));
+
+    // Contribution amount and status before LineItem edit
+    $this->assertEquals('Completed', $contribution['contribution_status']);
+    $this->assertEquals(100.00, $contribution['total_amount']);
+
+    $form = new CRM_Lineitemedit_Form_Edit();
+    $lineItemInfo = $this->callAPISuccessGetSingle('LineItem', array('contribution_id' => $contribution['id']));
+    $lineItemInfo['financial_type_id'] = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Campaign Contribution');
+    $form->testSubmit($lineItemInfo);
+
+    $actualFinancialItemEntries = $this->getFinancialItemsByLineItemID($lineItemInfo['id']);
+    $prevFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($this->_contribution['financial_type_id'], 'Income Account is');
+    $newFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItemInfo['financial_type_id'], 'Income Account is');
+    $expectedFinancialItemEntries = array(
+      array(
+        'contact_id' => $contactID,
+        'description' => 'Price Field 1',
+        'amount' => 100.00,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Paid'),
+        'financial_account_id' => $prevFinancialAccountID,
+      ),
+      array(
+        'contact_id' => $contactID,
+        'description' => 'Price Field 1',
+        'amount' => -100.00,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Paid'),
+        'financial_account_id' => $prevFinancialAccountID,
+      ),
+      array(
+        'contact_id' => $contactID,
+        'description' => 'Price Field 1',
+        'amount' => 100.00,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Paid'),
+        'financial_account_id' => $newFinancialAccountID,
+      ),
+    );
+    $this->checkArrayEqualsByAttributes($expectedFinancialItemEntries, $actualFinancialItemEntries);
+
+    $actualFinancialTrxnEntries = $this->getFinancialTrxnsByContributionID($contribution['id']);
+    $check = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'payment_instrument_id', 'Check');
+    $expectedFinancialTrxnEntries = array(
+      array(
+        'total_amount' => 100.00,
+        'net_amount' => 100.00,
+        'is_payment' => 1,
+        'payment_instrument_id' => $check,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
+      ),
+      array(
+        'total_amount' => -100.00,
+        'net_amount' => -100.00,
+        'is_payment' => 1,
+        'payment_instrument_id' => $check,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
+      ),
+      array(
+        'total_amount' => 100.00,
+        'net_amount' => 100.00,
+        'is_payment' => 1,
+        'payment_instrument_id' => $check,
+        'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
+      ),
+    );
+    $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
+  }
+
+
   public function testLineTotalChangeWithPriceSet() {
     $priceFieldValues = $this->createPriceSet();
     $priceFieldID = key($priceFieldValues);

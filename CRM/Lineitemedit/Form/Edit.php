@@ -107,9 +107,6 @@ class CRM_Lineitemedit_Form_Edit extends CRM_Core_Form {
       }
 
       $ele = $this->addField($fieldName, $properties, $required);
-      if ($this->_lineitemInfo['entity_table'] != 'civicrm_contribution' && $fieldName == 'financial_type_id') {
-        $ele->freeze();
-      }
     }
     $this->assign('fieldNames', $fieldNames);
 
