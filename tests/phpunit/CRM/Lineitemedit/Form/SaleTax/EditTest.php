@@ -331,6 +331,9 @@ class CRM_Lineitemedit_Form_SaleTax_EditTest extends CRM_Lineitemedit_Form_BaseT
     $lineItemInfo['tax_amount'] = $lineItemInfo['tax_amount'];
     $form->testSubmit($lineItemInfo);
 
+    $contribution = $this->callAPISuccessGetSingle('Contribution', array('id' => $contribution['id']));
+    $this->assertEquals($lineItemInfo['financial_type_id'], $contribution['financial_type_id']);
+
     $actualFinancialItemEntries = $this->getFinancialItemsByLineItemID($lineItemInfo['id']);
 
     $prevFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($this->_financialTypeID, 'Income Account is');

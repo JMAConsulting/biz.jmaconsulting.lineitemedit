@@ -736,6 +736,19 @@ ORDER BY  ps.id, pf.weight ;
       $values['deferred_line_item']['financial_item_id'] = $ftItem->id;
       self::createDeferredTrxn($contributionId, $values['deferred_line_item'], 'UpdateLineItem');
     }
+
+    $changeFinancialType = TRUE;
+    // find the total number of lineitem
+    $totalLineItem = civicrm_api3('LineItem', 'getcount', ['contribution_id' => $contributionId]);
+    //CRM_Core_Error::debug_var($totalLineItem, )
+    // if the contribtuion contain multiple line-items
+    if ($totalLineItem > 1) {
+      // if the total number of line-items is associated with multiple financial type then set $changeFinancialType to FALSE i.e. don't change the contribtuion's financial type
+      $changeFinancialType = (civicrm_api3('LineItem', 'getcount', ['contribution_id' => $contributionId, 'financial_type_id' => $newLineItem['financial_type_id']]) == $totalLineItem);
+    }
+    if ($changeFinancialType) {
+      civicrm_api3('Contribution', 'create', ['id' => $contributionId, 'financial_type_id' => $newLineItem['financial_type_id']]);
+    }
   }
 
   public static function createFinancialTrxnEntry($contributionId, $amount, $toFinancialAccount = NULL) {

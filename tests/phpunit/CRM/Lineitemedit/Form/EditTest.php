@@ -168,6 +168,9 @@ class CRM_Lineitemedit_Form_EditTest extends CRM_Lineitemedit_Form_BaseTest {
     $lineItemInfo['financial_type_id'] = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', 'Campaign Contribution');
     $form->testSubmit($lineItemInfo);
 
+    $contribution = $this->callAPISuccessGetSingle('Contribution', array('id' => $this->_contributionID));
+    $this->assertEquals($lineItemInfo['financial_type_id'], $contribution['financial_type_id']);
+
     $actualFinancialItemEntries = $this->getFinancialItemsByContributionID($this->_contributionID);
     $prevFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($this->_contribution['financial_type_id'], 'Income Account is');
     $newFinancialAccountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($lineItemInfo['financial_type_id'], 'Income Account is');
