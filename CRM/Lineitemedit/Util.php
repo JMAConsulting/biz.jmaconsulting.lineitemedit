@@ -909,13 +909,20 @@ ORDER BY  ps.id, pf.weight ;
             }
           }
           else {
-            if ($rowNumber == 0) {
-              $priceFieldValue = civicrm_api3('PriceFieldValue', 'get', ['name' => 'contribution_amount']);
-            }
-            else {
-              $priceFieldValue = civicrm_api3('PriceFieldValue', 'get', ['name' => 'additional_item_' . $rowNumber]);
-            }
-            $form->setDefaults(["item_price_field_value_id[$rowNumber]" => $priceFieldValue['id']]);
+            $priceSetDetails = civicrm_api3('PriceSet', 'get', [
+              'sequential' => 1,
+              'name' => "default_contribution_amount",
+              'is_quick_config' => 1,
+              'api.PriceField.get' => [
+                'sequential' => 1,
+                'price_set_id' => "\$value.id",
+                'api.PriceFieldValue.get' => [
+                  'sequential' => 1,
+                  'price_field_id' => "\$value.id"
+                ],
+              ],
+            ]);
+            $form->setDefaults(["item_price_field_value_id[$rowNumber]" => $priceSetDetails['values'][0]['api.PriceField.get']['values'][$rowNumber]['api.PriceFieldValue.get']['id']]);
           }
         }
       }
