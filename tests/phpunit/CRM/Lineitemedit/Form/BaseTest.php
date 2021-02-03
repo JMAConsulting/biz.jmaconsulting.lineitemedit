@@ -20,6 +20,7 @@ use Civi\Test\TransactionalInterface;
  */
 class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit\Framework\TestCase implements HeadlessInterface, HookInterface, TransactionalInterface {
 
+  use \Civi\Test\Api3DocTrait;
   protected $_contactID;
   protected $_contributionID;
   protected $_contribution;
@@ -45,87 +46,6 @@ class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit\Framework\TestCase impleme
 
   public function tearDown() {
     parent::tearDown();
-  }
-
-  /**
-   * wrap api functions.
-   * so we can ensure they succeed & throw exceptions without litterering the test with checks
-   *
-   * @param string $entity
-   * @param string $action
-   * @param array $params
-   * @param mixed $checkAgainst
-   *   Optional value to check result against, implemented for getvalue,.
-   *   getcount, getsingle. Note that for getvalue the type is checked rather than the value
-   *   for getsingle the array is compared against an array passed in - the id is not compared (for
-   *   better or worse )
-   *
-   * @return array|int
-   */
-  public function callAPISuccess($entity, $action, $params, $checkAgainst = NULL) {
-    $params = array_merge(array(
-        'debug' => 1,
-      ),
-      $params
-    );
-    switch (strtolower($action)) {
-      case 'getvalue':
-        return $this->callAPISuccessGetValue($entity, $params, $checkAgainst);
-
-      case 'getsingle':
-        return $this->callAPISuccessGetSingle($entity, $params, $checkAgainst);
-
-      case 'getcount':
-        return $this->callAPISuccessGetCount($entity, $params, $checkAgainst);
-    }
-    $result = civicrm_api3($entity, $action, $params);
-    return $result;
-  }
-
-  public function callAPISuccessGetValue($entity, $params, $type = NULL) {
-    $params += array(
-      'debug' => 1,
-    );
-    $result = civicrm_api3($entity, 'getvalue', $params);
-    if ($type) {
-      if ($type == 'integer') {
-        // api seems to return integers as strings
-        $this->assertTrue(is_numeric($result), "expected a numeric value but got " . print_r($result, 1));
-      }
-      else {
-        $this->assertType($type, $result, "returned result should have been of type $type but was ");
-      }
-    }
-    return $result;
-  }
-
-  public function callAPISuccessGetSingle($entity, $params, $checkAgainst = NULL) {
-    $params += array(
-      'debug' => 1,
-    );
-    $result = civicrm_api3($entity, 'getsingle', $params);
-    if (!is_array($result) || !empty($result['is_error']) || isset($result['values'])) {
-      throw new Exception('Invalid getsingle result' . print_r($result, TRUE));
-    }
-    if ($checkAgainst) {
-      // @todo - have gone with the fn that unsets id? should we check id?
-      $this->checkArrayEquals($result, $checkAgainst);
-    }
-    return $result;
-  }
-
-  public function callAPISuccessGetCount($entity, $params, $count = NULL) {
-    $params += array(
-      'debug' => 1,
-    );
-    $result = $this->civicrm_api3($entity, 'getcount', $params);
-    if (!is_int($result) || !empty($result['is_error']) || isset($result['values'])) {
-      throw new Exception('Invalid getcount result : ' . print_r($result, TRUE) . " type :" . gettype($result));
-    }
-    if (is_int($count)) {
-      $this->assertEquals($count, $result, "incorrect count returned from $entity getcount");
-    }
-    return $result;
   }
 
   /**
