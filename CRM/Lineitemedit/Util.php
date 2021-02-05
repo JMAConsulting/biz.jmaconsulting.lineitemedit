@@ -712,8 +712,10 @@ ORDER BY  ps.id, pf.weight ;
     );
     $trxnArray[2]['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($newLineItem['financial_type_id'], $accountRelName);
 
-    $accountRelationship = empty($contribution['revenue_recognition_date']) ? 'Income Account is' : 'Deferred Revenue Account is';
-    $trxnArray[1]['to_financial_account_id'] = $trxnArray[2]['to_financial_account_id'] = $newFinancialAccount = CRM_Financial_BAO_FinancialAccount::getFinancialAccountForFinancialTypeByRelationship($newLineItem['financial_type_id'], $accountRelationship);
+    // previous to_financial_account_id
+    $trxnArray[1]['to_financial_account_id'] = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialTrxn', CRM_Core_BAO_FinancialTrxn::getFinancialTrxnId($contributionId, 'DESC')['financialTrxnId'], 'to_financial_account_id');
+    // retrieve linked financial account for payment instrument
+    $trxnArray[2]['to_financial_account_id'] = CRM_Financial_BAO_FinancialTypeAccount::getInstrumentFinancialAccount($contribution['payment_instrument_id']);
 
     $financialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Paid');
     foreach ($trxnArray as $values) {
