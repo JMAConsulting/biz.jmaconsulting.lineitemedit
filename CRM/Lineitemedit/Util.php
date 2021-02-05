@@ -687,7 +687,7 @@ ORDER BY  ps.id, pf.weight ;
       'getsingle',
       array(
         'id' => $contributionId,
-        'return' => array('payment_instrument_id'),
+        'return' => array('payment_instrument_id', 'revenue_recognition_date'),
       )
     );
 
@@ -712,7 +712,10 @@ ORDER BY  ps.id, pf.weight ;
     );
     $trxnArray[2]['financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($newLineItem['financial_type_id'], $accountRelName);
 
-    $trxnArray[1]['to_financial_account_id'] = $trxnArray[2]['to_financial_account_id'] = CRM_Financial_BAO_FinancialTypeAccount::getInstrumentFinancialAccount($contribution['payment_instrument_id']);
+    // previous to_financial_account_id
+    $trxnArray[1]['to_financial_account_id'] = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialTrxn', CRM_Core_BAO_FinancialTrxn::getFinancialTrxnId($contributionId, 'DESC')['financialTrxnId'], 'to_financial_account_id');
+    // retrieve linked financial account for payment instrument
+    $trxnArray[2]['to_financial_account_id'] = CRM_Financial_BAO_FinancialTypeAccount::getInstrumentFinancialAccount($contribution['payment_instrument_id']);
 
     $financialItem['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Financial_DAO_FinancialItem', 'status_id', 'Paid');
     foreach ($trxnArray as $values) {
@@ -735,6 +738,18 @@ ORDER BY  ps.id, pf.weight ;
       }
       $values['deferred_line_item']['financial_item_id'] = $ftItem->id;
       self::createDeferredTrxn($contributionId, $values['deferred_line_item'], 'UpdateLineItem');
+    }
+
+    $changeFinancialType = TRUE;
+    // find the total number of lineitem
+    $totalLineItem = civicrm_api3('LineItem', 'getcount', ['contribution_id' => $contributionId]);
+    // if the contribtuion contain multiple line-items
+    if ($totalLineItem > 1) {
+      // if the total number of line-items is associated with multiple financial type then set $changeFinancialType to FALSE i.e. don't change the contribtuion's financial type
+      $changeFinancialType = (civicrm_api3('LineItem', 'getcount', ['contribution_id' => $contributionId, 'financial_type_id' => $newLineItem['financial_type_id']]) == $totalLineItem);
+    }
+    if ($changeFinancialType) {
+      CRM_Core_DAO::executeQuery(sprintf("UPDATE civicrm_contribution SET financial_type_id = %d WHERE id = %d ", $newLineItem['financial_type_id'], $contributionId));
     }
   }
 
