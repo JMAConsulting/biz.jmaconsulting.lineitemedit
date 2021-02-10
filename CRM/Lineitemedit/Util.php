@@ -146,7 +146,7 @@ class CRM_Lineitemedit_Util {
           // for participant line item, add participant name
           if ($lineItem['entity_table'] == 'civicrm_participant') {
             $participant = civicrm_api3('Participant', 'getsingle', ['id' => $lineItem['entity_id']]);
-            $lineItems[$priceSetID][$lineItemID]['field_title'] = $lineItems[$priceSetID][$lineItemID]['field_title'] . ' - ' . $participant['display_name'];
+            $lineItems[$priceSetID][$lineItemID]['label'] = $lineItems[$priceSetID][$lineItemID]['field_title'] . ' - ' . $participant['display_name'];
           }
 
           if (!$isParticipantCount) {
