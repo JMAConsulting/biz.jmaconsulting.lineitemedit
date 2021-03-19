@@ -36,7 +36,7 @@ class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit\Framework\TestCase impleme
       ->apply();
   }
 
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
     $this->createContact();
     if ($this->_createContri) {
@@ -44,7 +44,7 @@ class CRM_Lineitemedit_Form_BaseTest extends \PHPUnit\Framework\TestCase impleme
     }
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
     parent::tearDown();
   }
 

@@ -27,15 +27,15 @@ class CRM_Lineitemedit_Form_CancelTest extends CRM_Lineitemedit_Form_BaseTest {
       ->apply();
   }
 
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
     parent::tearDown();
   }
 
-  public function testLineitemCancel() {
+  public function testLineitemCancel(): void {
     // Contribution amount and status before LineItem cancel
     $this->assertEquals('Completed', $this->_contribution['contribution_status']);
     $this->assertEquals(100.00, $this->_contribution['total_amount']);
@@ -87,7 +87,7 @@ class CRM_Lineitemedit_Form_CancelTest extends CRM_Lineitemedit_Form_BaseTest {
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
   }
 
-  public function testLineitemCancelWithPriceSet() {
+  public function testLineitemCancelWithPriceSet(): void {
     $priceFieldValues = $this->createPriceSet();
     $priceFieldID = key($priceFieldValues);
     $contactID = $this->createDummyContact();
