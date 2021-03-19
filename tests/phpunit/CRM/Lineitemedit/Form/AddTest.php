@@ -29,15 +29,15 @@ class CRM_Lineitemedit_Form_AddTest extends CRM_Lineitemedit_Form_BaseTest {
       ->apply();
   }
 
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
     parent::tearDown();
   }
 
-  public function testLineItemAdditionOnBackofficeForm() {
+  public function testLineItemAdditionOnBackofficeForm(): void {
     $contactID = $this->createDummyContact();
     $form = new CRM_Contribute_Form_Contribution();
 

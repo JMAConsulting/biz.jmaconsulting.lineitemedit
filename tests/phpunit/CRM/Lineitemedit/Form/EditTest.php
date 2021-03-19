@@ -29,18 +29,18 @@ class CRM_Lineitemedit_Form_EditTest extends CRM_Lineitemedit_Form_BaseTest {
       ->apply();
   }
 
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
     parent::tearDown();
   }
 
   /**
    * Example: Test that a version is returned.
    */
-  public function testLineTotalIncrease() {
+  public function testLineTotalIncrease(): void {
     // Contribution amount and status before LineItem edit
     $this->assertEquals('Completed', $this->_contribution['contribution_status']);
     $this->assertEquals(100.00, $this->_contribution['total_amount']);
@@ -94,7 +94,7 @@ class CRM_Lineitemedit_Form_EditTest extends CRM_Lineitemedit_Form_BaseTest {
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
   }
 
-  public function testWithoutPriceFieldID() {
+  public function testWithoutPriceFieldID(): void {
     // Contribution amount and status before LineItem edit
     $this->assertEquals('Completed', $this->_contribution['contribution_status']);
     $this->assertEquals(100.00, $this->_contribution['total_amount']);
@@ -136,7 +136,7 @@ class CRM_Lineitemedit_Form_EditTest extends CRM_Lineitemedit_Form_BaseTest {
   /**
    * Example: Test that a version is returned.
    */
-  public function testLineTotalDecrease() {
+  public function testLineTotalDecrease(): void {
     // Contribution amount and status before LineItem edit
     $this->assertEquals('Completed', $this->_contribution['contribution_status']);
     $this->assertEquals(100.00, $this->_contribution['total_amount']);
@@ -226,7 +226,7 @@ class CRM_Lineitemedit_Form_EditTest extends CRM_Lineitemedit_Form_BaseTest {
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
   }
 
-  public function testFinancialTypeChangeWithPriceSet() {
+  public function testFinancialTypeChangeWithPriceSet(): void {
     $priceFieldValues = $this->createPriceSet();
     $priceFieldID = key($priceFieldValues);
     $contactID = $this->createDummyContact();
@@ -311,7 +311,7 @@ class CRM_Lineitemedit_Form_EditTest extends CRM_Lineitemedit_Form_BaseTest {
   }
 
 
-  public function testLineTotalChangeWithPriceSet() {
+  public function testLineTotalChangeWithPriceSet(): void {
     $priceFieldValues = $this->createPriceSet();
     $priceFieldID = key($priceFieldValues);
     $contactID = $this->createDummyContact();
@@ -382,7 +382,7 @@ class CRM_Lineitemedit_Form_EditTest extends CRM_Lineitemedit_Form_BaseTest {
     );
   }
 
-  public function testParticipantRecordOnLineItemEdit() {
+  public function testParticipantRecordOnLineItemEdit(): void {
     $event = $this->eventCreate();
     $form = $this->getFormObject('CRM_Event_Form_Participant');
     $form->_single = TRUE;
