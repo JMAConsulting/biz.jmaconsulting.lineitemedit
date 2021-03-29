@@ -268,7 +268,7 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
           $lineItem['qty']
         );
 
-        $newLineItemParams = array(
+        $newLineItemParams[] = array(
           'entity_table' => $lineEntityTable,
           'entity_id' => $lineEntityID,
           'contribution_id' => $entityID,
@@ -281,7 +281,10 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
           'financial_type_id' => $lineItem['financial_type_id'],
           'tax_amount' => CRM_Utils_Array::value('tax_amount', $lineItem),
         );
-        $newLineItem[] = civicrm_api3('LineItem', 'create', $newLineItemParams)['id'];
+      }
+
+      foreach ($newLineItemParams as $lineItem) {
+        $newLineItem[] = civicrm_api3('LineItem', 'create', $lineItem)['id'];
       }
 
       if (!empty($lineItemParams)) {
