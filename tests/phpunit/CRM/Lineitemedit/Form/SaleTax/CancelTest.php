@@ -30,7 +30,7 @@ class CRM_Lineitemedit_Form_SaleTax_CancelTest extends CRM_Lineitemedit_Form_Bas
       ->apply();
   }
 
-  public function setUp() {
+  public function setUp(): void {
     $this->_createContri = FALSE;
     parent::setUp();
 
@@ -41,12 +41,12 @@ class CRM_Lineitemedit_Form_SaleTax_CancelTest extends CRM_Lineitemedit_Form_Bas
     $financialAccount = $this->relationForFinancialTypeWithFinancialAccount($financialType['id']);
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
     $this->disableTaxAndInvoicing();
     parent::tearDown();
   }
 
-  public function testLineitemCancel() {
+  public function testLineitemCancel(): void {
     $this->createContribution(array(
       'financial_type_id' => $this->_financialTypeID,
     ));
@@ -120,7 +120,7 @@ class CRM_Lineitemedit_Form_SaleTax_CancelTest extends CRM_Lineitemedit_Form_Bas
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
   }
 
-  public function testLineitemCancelWithPriceSet() {
+  public function testLineitemCancelWithPriceSet(): void {
     $priceFieldValues = $this->createPriceSet(array('financial_type_id' => $this->_financialTypeID));
     $priceFieldID = key($priceFieldValues);
     $contactID = $this->createDummyContact();

@@ -30,7 +30,7 @@ class CRM_Lineitemedit_Form_SaleTax_EditTest extends CRM_Lineitemedit_Form_BaseT
       ->apply();
   }
 
-  public function setUp() {
+  public function setUp(): void {
     $this->_createContri = FALSE;
     parent::setUp();
 
@@ -41,12 +41,12 @@ class CRM_Lineitemedit_Form_SaleTax_EditTest extends CRM_Lineitemedit_Form_BaseT
     $financialAccount = $this->relationForFinancialTypeWithFinancialAccount($financialType['id']);
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
     $this->disableTaxAndInvoicing();
     parent::tearDown();
   }
 
-  public function testLineTotalIncrease() {
+  public function testLineTotalIncrease(): void {
     $this->createContribution(array(
       'financial_type_id' => $this->_financialTypeID,
     ));
@@ -123,7 +123,7 @@ class CRM_Lineitemedit_Form_SaleTax_EditTest extends CRM_Lineitemedit_Form_BaseT
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
   }
 
-  public function testLineTotalDecrease() {
+  public function testLineTotalDecrease(): void {
     $this->createContribution(array(
       'financial_type_id' => $this->_financialTypeID,
     ));
@@ -201,7 +201,7 @@ class CRM_Lineitemedit_Form_SaleTax_EditTest extends CRM_Lineitemedit_Form_BaseT
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
   }
 
-  public function testLineTotalChangeWithPriceSet() {
+  public function testLineTotalChangeWithPriceSet(): void {
     $priceFieldValues = $this->createPriceSet(array('financial_type_id' => $this->_financialTypeID));
     $priceFieldID = key($priceFieldValues);
     $contactID = $this->createDummyContact();
@@ -295,7 +295,7 @@ class CRM_Lineitemedit_Form_SaleTax_EditTest extends CRM_Lineitemedit_Form_BaseT
     $this->checkArrayEqualsByAttributes($expectedFinancialTrxnEntries, $actualFinancialTrxnEntries);
   }
 
-  public function testFinancialTypeChangeWithPriceSet() {
+  public function testFinancialTypeChangeWithPriceSet(): void {
     $name = 'Financial-Type -' . substr(sha1(rand()), 0, 7);
     $financialType2 = $this->createFinancialType(array('name' => $name))['id'];
     $financialAccount = $this->relationForFinancialTypeWithFinancialAccount($financialType2);
