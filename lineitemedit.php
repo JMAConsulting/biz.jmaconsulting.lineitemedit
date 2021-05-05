@@ -225,6 +225,7 @@ function lineitemedit_civicrm_pre($op, $entity, $entityID, &$params) {
             $params['tax_amount'] += $lineItemParams[$i]['tax_amount'];
           }
           $params['total_amount'] = $params['amount'] += (CRM_Utils_Array::value('line_total', $lineItemParams[$i], 0.00) + CRM_Utils_Array::value('tax_amount', $lineItemParams[$i], 0.00));
+          $params['net_amount'] = $params['total_amount'] - $params['fee_amount'] ?? 0;
           if (!empty($lineItemParams[$i]['line_total']) && !empty($lineItemParams[$i]['price_field_id'])) {
             $priceSetID = CRM_Core_DAO::getFieldValue('CRM_Price_BAO_PriceField', $lineItemParams[$i]['price_field_id'], 'price_set_id');
             if (!empty($params['line_item'][$priceSetID])) {

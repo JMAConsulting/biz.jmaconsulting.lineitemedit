@@ -30,7 +30,7 @@ class CRM_Lineitemedit_Form_SaleTax_CancelTest extends CRM_Lineitemedit_Form_Bas
       ->apply();
   }
 
-  public function setUp() {
+  public function setUp(): void {
     $this->_createContri = FALSE;
     parent::setUp();
 
@@ -41,7 +41,7 @@ class CRM_Lineitemedit_Form_SaleTax_CancelTest extends CRM_Lineitemedit_Form_Bas
     $financialAccount = $this->relationForFinancialTypeWithFinancialAccount($financialType['id']);
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
     $this->disableTaxAndInvoicing();
     parent::tearDown();
   }
