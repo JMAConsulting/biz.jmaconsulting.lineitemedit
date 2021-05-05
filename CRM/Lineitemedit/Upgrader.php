@@ -38,4 +38,17 @@ class CRM_Lineitemedit_Upgrader extends CRM_Lineitemedit_Upgrader_Base {
     return TRUE;
   }
 
+  /**
+   * Example: Run a couple simple queries.
+   *
+   * @return TRUE on success
+   * @throws Exception
+   *
+   */
+  public function upgrade_2400() {
+    $this->ctx->log->info('Applying update 2400');
+    CRM_Core_DAO::executeQuery('UPDATE civicrm_contribution SET net_amount = total_amount - fee_amount WHERE fee_amount IS NOT NULL AND fee_amount > 0');
+    return TRUE;
+  }
+
 }
